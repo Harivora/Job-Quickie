@@ -39,7 +39,11 @@ export default function Landing() {
   return (
     <div className="landing">
       <nav className="landing-nav">
-        <div className="brand"><span className="brand-mark">JQ</span>Job Quickie</div>
+        <div className="brand">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="brand-logo" src="/logo.svg" alt="JobQuickie" />
+          Job<span style={{ color: "#2f7bff" }}>Quickie</span>
+        </div>
       </nav>
       <div className="hero">
         <div className="hero-left">

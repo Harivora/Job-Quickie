@@ -1,220 +1,197 @@
 "use client";
-import { useEffect, useRef } from "react";
-import * as THREE from "three";
-import { COUNTRIES } from "@/lib/geo";
+import { useEffect, useRef, useState, useMemo } from "react";
+import Globe from "react-globe.gl";
+import { matchLocation } from "@/lib/geo";
 
-// Interactive globe: drag to roam, hover for tooltip, click a country
-// marker to filter jobs. Marker size reflects the number of openings.
-export default function JobGlobe({ counts = {}, selected = null, onSelect }) {
+// Real earth with country borders (Natural Earth GeoJSON), scroll zoom,
+// click a country to outline it and fly in, click a city marker to go deeper.
+
+const GEOJSON_URLS = [
+  "https://globe.gl/example/datasets/ne_110m_admin_0_countries.geojson",
+  "https://raw.githubusercontent.com/vasturiano/globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson",
+];
+const EARTH_IMG = "https://unpkg.com/three-globe/example/img/earth-night.jpg";
+const BUMP_IMG = "https://unpkg.com/three-globe/example/img/earth-topology.png";
+
+function featureName(f) {
+  return f?.properties?.NAME || f?.properties?.ADMIN || "";
+}
+
+// centroid + rough span of a (Multi)Polygon feature
+function featureCenter(f) {
+  let sx = 0, sy = 0, n = 0;
+  let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
+  const scan = (ring) => {
+    for (const [lon, lat] of ring) {
+      sx += lon; sy += lat; n++;
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+      if (lon < minLon) minLon = lon;
+      if (lon > maxLon) maxLon = lon;
+    }
+  };
+  const g = f.geometry;
+  if (g.type === "Polygon") g.coordinates.forEach(scan);
+  else if (g.type === "MultiPolygon") g.coordinates.forEach((p) => p.forEach(scan));
+  const span = Math.max(maxLat - minLat, (maxLon - minLon) * 0.7);
+  return { lat: sy / n, lng: sx / n, span };
+}
+
+export default function JobGlobe({
+  counts = {},
+  selected = null,
+  onSelect,
+  cityPoints = [],
+  selectedCity = null,
+  onSelectCity,
+}) {
   const wrapRef = useRef(null);
-  const tipRef = useRef(null);
-  const stateRef = useRef({});
-  const propsRef = useRef({ counts, selected, onSelect });
-  propsRef.current = { counts, selected, onSelect };
+  const globeRef = useRef(null);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  const [features, setFeatures] = useState([]);
+  const [hovered, setHovered] = useState(null);
 
-  // one-time scene setup
+  // measure container
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, el.clientWidth / el.clientHeight, 0.1, 100);
-    camera.position.z = 7.2;
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(el.clientWidth, el.clientHeight);
-    el.appendChild(renderer.domElement);
-
-    const globe = new THREE.Group();
-    scene.add(globe);
-
-    const R = 2.5;
-    // land-like point cloud
-    const positions = [];
-    for (let i = 0; i < 8000; i++) {
-      const phi = Math.acos(2 * Math.random() - 1);
-      const theta = Math.random() * Math.PI * 2;
-      const n =
-        Math.sin(phi * 4 + 1.3) * Math.cos(theta * 3 + 0.7) +
-        Math.sin(phi * 7) * Math.cos(theta * 5) * 0.5;
-      if (n < 0.15) continue;
-      positions.push(
-        R * Math.sin(phi) * Math.cos(theta),
-        R * Math.cos(phi),
-        R * Math.sin(phi) * Math.sin(theta)
-      );
-    }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    globe.add(new THREE.Points(geo, new THREE.PointsMaterial({ color: 0x3b6fd4, size: 0.03, transparent: true, opacity: 0.75 })));
-    globe.add(new THREE.Mesh(
-      new THREE.SphereGeometry(R - 0.04, 48, 48),
-      new THREE.MeshBasicMaterial({ color: 0x0b1730, transparent: true, opacity: 0.92 })
-    ));
-
-    const markers = new THREE.Group();
-    globe.add(markers);
-
-    const raycaster = new THREE.Raycaster();
-    const pointer = new THREE.Vector2();
-
-    const st = stateRef.current;
-    Object.assign(st, {
-      scene, camera, renderer, globe, markers, R,
-      dragging: false, moved: 0, lastX: 0, lastY: 0,
-      velX: 0.0022, rotX: 0.35, idleAt: 0, hovered: null,
-    });
-
-    const setPointer = (e) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-    };
-    const pick = () => {
-      raycaster.setFromCamera(pointer, camera);
-      const hits = raycaster.intersectObjects(markers.children.filter((m) => m.userData.hit));
-      return hits.length ? hits[0].object : null;
-    };
-
-    const onDown = (e) => {
-      st.dragging = true; st.moved = 0;
-      st.lastX = e.clientX; st.lastY = e.clientY;
-    };
-    const onMove = (e) => {
-      setPointer(e);
-      if (st.dragging) {
-        const dx = e.clientX - st.lastX;
-        const dy = e.clientY - st.lastY;
-        st.moved += Math.abs(dx) + Math.abs(dy);
-        globe.rotation.y += dx * 0.005;
-        st.rotX = Math.max(-1.1, Math.min(1.1, st.rotX + dy * 0.003));
-        st.lastX = e.clientX; st.lastY = e.clientY;
-        st.idleAt = performance.now();
-        return;
-      }
-      const hit = pick();
-      const tip = tipRef.current;
-      if (hit && tip) {
-        st.hovered = hit.userData.country;
-        const rect = renderer.domElement.getBoundingClientRect();
-        tip.style.display = "block";
-        tip.style.left = e.clientX - rect.left + 12 + "px";
-        tip.style.top = e.clientY - rect.top - 10 + "px";
-        tip.textContent = `${hit.userData.country} — ${hit.userData.count} job${hit.userData.count === 1 ? "" : "s"}`;
-        renderer.domElement.style.cursor = "pointer";
-      } else if (tip) {
-        st.hovered = null;
-        tip.style.display = "none";
-        renderer.domElement.style.cursor = "grab";
-      }
-    };
-    const onUp = (e) => {
-      const wasDrag = st.moved > 6;
-      st.dragging = false;
-      st.idleAt = performance.now();
-      if (wasDrag) return;
-      setPointer(e);
-      const hit = pick();
-      const { selected: sel, onSelect: cb } = propsRef.current;
-      if (hit && cb) cb(hit.userData.country === sel ? null : hit.userData.country);
-    };
-
-    const dom = renderer.domElement;
-    dom.style.cursor = "grab";
-    dom.addEventListener("pointerdown", onDown);
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-
-    let raf;
-    const animate = () => {
-      // gentle auto-rotate after 2.5s idle
-      if (!st.dragging && performance.now() - st.idleAt > 2500) {
-        globe.rotation.y += st.velX;
-      }
-      globe.rotation.x = st.rotX;
-      renderer.render(scene, camera);
-      raf = requestAnimationFrame(animate);
-    };
-    animate();
-
-    const onResize = () => {
-      camera.aspect = el.clientWidth / el.clientHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(el.clientWidth, el.clientHeight);
-    };
-    window.addEventListener("resize", onResize);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("resize", onResize);
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      dom.removeEventListener("pointerdown", onDown);
-      renderer.dispose();
-      el.removeChild(dom);
-    };
+    const measure = () =>
+      setSize({ w: el.clientWidth, h: el.clientHeight });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
-  // rebuild markers whenever counts / selection change
+  // load country borders
   useEffect(() => {
-    const st = stateRef.current;
-    if (!st.markers) return;
-    const { markers, R } = st;
-    while (markers.children.length) {
-      const m = markers.children.pop();
-      m.geometry?.dispose();
-      m.material?.dispose();
-    }
-    const max = Math.max(1, ...Object.values(counts));
-    for (const c of COUNTRIES) {
-      const count = counts[c.n] || 0;
-      if (!count) continue;
-      const phi = (90 - c.lat) * (Math.PI / 180);
-      const theta = (c.lon + 90) * (Math.PI / 180);
-      const pos = new THREE.Vector3(
-        R * Math.sin(phi) * Math.cos(theta),
-        R * Math.cos(phi),
-        R * Math.sin(phi) * Math.sin(theta)
-      );
-      const isSel = selected === c.n;
-      const size = 0.055 + 0.11 * Math.sqrt(count / max);
-      const dot = new THREE.Mesh(
-        new THREE.SphereGeometry(size, 14, 14),
-        new THREE.MeshBasicMaterial({ color: isSel ? 0x2dd4a7 : 0xf5b544 })
-      );
-      dot.position.copy(pos).multiplyScalar(1.01);
-      markers.add(dot);
-      // glow halo for the selected country
-      if (isSel) {
-        const halo = new THREE.Mesh(
-          new THREE.SphereGeometry(size * 1.9, 14, 14),
-          new THREE.MeshBasicMaterial({ color: 0x2dd4a7, transparent: true, opacity: 0.25 })
-        );
-        halo.position.copy(dot.position);
-        markers.add(halo);
+    let dead = false;
+    (async () => {
+      for (const url of GEOJSON_URLS) {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) continue;
+          const geo = await res.json();
+          if (dead) return;
+          const feats = (geo.features || [])
+            .filter((f) => featureName(f) !== "Antarctica")
+            .map((f) => {
+              // map the GeoJSON country to our canonical country name
+              const m = matchLocation(featureName(f), "");
+              f.__jq = m.countries[0] || featureName(f);
+              return f;
+            });
+          setFeatures(feats);
+          return;
+        } catch {}
       }
-      // invisible, larger hit target for easy clicking
-      const hit = new THREE.Mesh(
-        new THREE.SphereGeometry(Math.max(size * 2.2, 0.16), 8, 8),
-        new THREE.MeshBasicMaterial({ visible: false })
-      );
-      hit.position.copy(dot.position);
-      hit.userData = { hit: true, country: c.n, count };
-      markers.add(hit);
+    })();
+    return () => { dead = true; };
+  }, []);
+
+  // globe controls: zoom enabled, slow auto-rotate until a country is picked
+  useEffect(() => {
+    const g = globeRef.current;
+    if (!g) return;
+    const controls = g.controls();
+    controls.enableZoom = true;
+    controls.zoomSpeed = 0.8;
+    controls.autoRotate = !selected;
+    controls.autoRotateSpeed = 0.55;
+    controls.minDistance = 130;
+    controls.maxDistance = 480;
+  }, [selected, features]);
+
+  // fly the camera when selection changes
+  useEffect(() => {
+    const g = globeRef.current;
+    if (!g) return;
+    if (selectedCity) {
+      const cp = cityPoints.find((c) => c.name === selectedCity);
+      if (cp) { g.pointOfView({ lat: cp.lat, lng: cp.lng, altitude: 0.35 }, 1200); return; }
     }
-  }, [counts, selected]);
+    if (selected) {
+      const f = features.find((x) => x.__jq === selected);
+      if (f) {
+        const { lat, lng, span } = featureCenter(f);
+        const altitude = Math.min(2, Math.max(0.45, span / 28));
+        g.pointOfView({ lat, lng, altitude }, 1200);
+        return;
+      }
+    }
+    g.pointOfView({ lat: 20, lng: 10, altitude: 2.2 }, 1200);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, selectedCity, features]);
+
+  const maxCount = useMemo(
+    () => Math.max(1, ...Object.values(counts)),
+    [counts]
+  );
+
+  const capColor = (f) => {
+    if (f.__jq === selected) return "rgba(59,130,246,0.35)";
+    if (f === hovered) return "rgba(59,130,246,0.22)";
+    const c = counts[f.__jq] || 0;
+    if (!c) return "rgba(255,255,255,0.015)";
+    const t = Math.sqrt(c / maxCount);
+    return `rgba(245,181,68,${0.06 + t * 0.3})`;
+  };
 
   return (
-    <div ref={wrapRef} style={{ position: "relative", width: "100%", height: "100%" }}>
-      <div
-        ref={tipRef}
-        style={{
-          display: "none", position: "absolute", zIndex: 5, pointerEvents: "none",
-          background: "rgba(10,16,30,.92)", color: "#e8ecf6", border: "1px solid rgba(255,255,255,.15)",
-          borderRadius: 6, padding: "4px 10px", fontSize: 12, whiteSpace: "nowrap",
-        }}
-      />
+    <div ref={wrapRef} style={{ position: "relative", width: "100%", height: "100%", cursor: hovered ? "pointer" : "grab" }}>
+      {size.w > 0 && (
+        <Globe
+          ref={globeRef}
+          width={size.w}
+          height={size.h}
+          backgroundColor="rgba(0,0,0,0)"
+          globeImageUrl={EARTH_IMG}
+          bumpImageUrl={BUMP_IMG}
+          atmosphereColor="#3b82f6"
+          atmosphereAltitude={0.18}
+          polygonsData={features}
+          polygonCapColor={capColor}
+          polygonSideColor={() => "rgba(59,130,246,0.06)"}
+          polygonStrokeColor={(f) =>
+            f.__jq === selected ? "rgba(147,197,253,0.9)" : "rgba(255,255,255,0.28)"
+          }
+          polygonAltitude={(f) => (f.__jq === selected ? 0.015 : 0.004)}
+          polygonsTransitionDuration={250}
+          onPolygonHover={setHovered}
+          onPolygonClick={(f) => {
+            if (!onSelect) return;
+            onSelect(f.__jq === selected ? null : f.__jq);
+          }}
+          polygonLabel={(f) => {
+            const c = counts[f.__jq] || 0;
+            return `<div style="background:rgba(8,12,22,.92);border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:5px 10px;font-size:12px;color:#e6ebf4;font-family:system-ui">
+              <b>${f.__jq}</b> — ${c} open position${c === 1 ? "" : "s"}${c ? "<br/><span style='color:#98a4b5'>Click to explore</span>" : ""}
+            </div>`;
+          }}
+          pointsData={selected ? cityPoints : []}
+          pointLat={(d) => d.lat}
+          pointLng={(d) => d.lng}
+          pointColor={(d) => (d.name === selectedCity ? "#34d399" : "#fbbf24")}
+          pointAltitude={(d) => (d.name === selectedCity ? 0.06 : 0.03)}
+          pointRadius={(d) => 0.12 + 0.25 * Math.sqrt(d.count / Math.max(1, cityPoints[0]?.count || 1))}
+          pointsTransitionDuration={300}
+          onPointClick={(d) => {
+            if (!onSelectCity) return;
+            onSelectCity(d.name === selectedCity ? null : d.name);
+          }}
+          pointLabel={(d) =>
+            `<div style="background:rgba(8,12,22,.92);border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:5px 10px;font-size:12px;color:#e6ebf4;font-family:system-ui">
+              <b>${d.label}</b> — ${d.count} job${d.count === 1 ? "" : "s"}
+            </div>`
+          }
+        />
+      )}
+      <div style={{
+        position: "absolute", bottom: 10, left: 14, color: "#64707f",
+        fontSize: 11.5, pointerEvents: "none", userSelect: "none",
+      }}>
+        Scroll to zoom · drag to rotate · click a country
+      </div>
     </div>
   );
 }

@@ -62,7 +62,11 @@ export default function Admin() {
     <div>
       <div className="topbar">
         <div className="wrap topbar-inner">
-          <div className="brand"><span className="brand-mark">JQ</span>Job Quickie — Admin</div>
+          <div className="brand">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="brand-logo" src="/logo.svg" alt="JobQuickie" />
+            Job<span style={{ color: "#2f7bff" }}>Quickie</span>&nbsp;— Admin
+          </div>
           <div className="top-right">
             <a className="btn" href="/dashboard">Dashboard</a>
             <button className="btn" onClick={logout}>Sign out</button>

@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { matchLocation } from "@/lib/geo";
+import { matchLocation, CITIES } from "@/lib/geo";
 
 const JobGlobe = dynamic(() => import("@/components/JobGlobe"), { ssr: false });
 
@@ -121,20 +121,27 @@ export default function Dashboard() {
     return f;
   }, [textFiltered, country, city, includeWorldwide]);
 
-  // top cities within the selected country
-  const cities = useMemo(() => {
+  // cities (with coordinates) within the selected country → globe markers + chips
+  const cityPoints = useMemo(() => {
     if (!country) return [];
-    const counts = {};
+    const cnt = {};
     for (const j of textFiltered) {
       if (!j._countries.includes(country)) continue;
-      const first = (j.location || "").split(",")[0].trim();
-      if (!first || first.length > 26) continue;
-      if (first.toLowerCase() === country.toLowerCase()) continue;
-      counts[first] = (counts[first] || 0) + 1;
+      const loc = (j.location || "").toLowerCase();
+      for (const [key, info] of Object.entries(CITIES)) {
+        if (info.c !== country) continue;
+        if (loc.includes(key)) { cnt[key] = (cnt[key] || 0) + 1; break; }
+      }
     }
-    return Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10);
+    return Object.entries(cnt)
+      .map(([key, count]) => ({
+        name: key,
+        label: key.replace(/(^|\s)\S/g, (c) => c.toUpperCase()),
+        lat: CITIES[key].lat,
+        lng: CITIES[key].lon,
+        count,
+      }))
+      .sort((a, b) => b.count - a.count);
   }, [textFiltered, country]);
 
   const filtered = useMemo(() => {
@@ -159,7 +166,11 @@ export default function Dashboard() {
     <div>
       <div className="topbar">
         <div className="wrap topbar-inner">
-          <div className="brand"><span className="brand-mark">JQ</span>Job Quickie</div>
+          <div className="brand">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="brand-logo" src="/logo.svg" alt="JobQuickie" />
+            Job<span style={{ color: "#2f7bff" }}>Quickie</span>
+          </div>
           <div className="top-right">
             {updated && <span className="updated">Updated {updated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
             <button className="btn primary" onClick={load} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</button>
@@ -191,7 +202,14 @@ export default function Dashboard() {
           {showGlobe && (
             <div className="globepanel-body">
               <div className="globepanel-canvas">
-                <JobGlobe counts={countryCounts} selected={country} onSelect={selectCountry} />
+                <JobGlobe
+                  counts={countryCounts}
+                  selected={country}
+                  onSelect={selectCountry}
+                  cityPoints={cityPoints}
+                  selectedCity={city}
+                  onSelectCity={(c) => { setCity(c); setPage(1); }}
+                />
               </div>
               <div className="globepanel-side">
                 {country ? (
@@ -208,17 +226,17 @@ export default function Dashboard() {
                       />
                       Include worldwide-remote roles
                     </label>
-                    {cities.length > 0 && (
+                    {cityPoints.length > 0 && (
                       <>
-                        <div className="geolabel">Cities</div>
+                        <div className="geolabel">Cities — click a marker on the globe or a chip</div>
                         <div className="chiprow" style={{ marginTop: 6 }}>
-                          {cities.map(([c, n]) => (
+                          {cityPoints.slice(0, 10).map((cp) => (
                             <span
-                              key={c}
-                              className={"chip" + (city === c ? " on" : "")}
-                              onClick={() => { setCity(city === c ? null : c); setPage(1); }}
+                              key={cp.name}
+                              className={"chip" + (city === cp.name ? " on" : "")}
+                              onClick={() => { setCity(city === cp.name ? null : cp.name); setPage(1); }}
                             >
-                              {c} · {n}
+                              {cp.label} · {cp.count}
                             </span>
                           ))}
                         </div>
@@ -288,7 +306,7 @@ export default function Dashboard() {
         <div className="listmeta">
           <span>
             {filtered.length ? `Showing ${slice.length} of ${filtered.length} positions` : ""}
-            {country ? ` in ${city ? city + ", " : ""}${country}` : ""}
+            {country ? ` in ${city ? (cityPoints.find((c) => c.name === city)?.label || city) + ", " : ""}${country}` : ""}
           </span>
           <span className="srcbadges">
             {Object.entries(sources).map(([n, v]) => (

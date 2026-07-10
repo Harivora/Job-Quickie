@@ -1,9 +1,10 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Job Quickie — Live Job Market Monitor",
+  title: "JobQuickie — Find Jobs. Faster.",
   description:
     "Live remote, hybrid and on-site job listings aggregated from multiple sources.",
+  icons: { icon: "/logo.svg" },
 };
 
 export default function RootLayout({ children }) {
