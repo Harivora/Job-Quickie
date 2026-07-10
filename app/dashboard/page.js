@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Loader from "@/components/Loader";
 import dynamic from "next/dynamic";
 import { matchLocation, CITIES } from "@/lib/geo";
+import Insights from "@/components/Insights";
 
 const JobGlobe = dynamic(() => import("@/components/JobGlobe"), { ssr: false });
 
@@ -17,6 +18,15 @@ const QUICK = [
   { label: "Design", re: /\b(design|ux|ui\b|graphic|product design)\b/i },
   { label: "Marketing & Sales", re: /\b(marketing|sales|seo|growth|account (executive|manager))\b/i },
   { label: "Finance & Legal", re: /\b(finance|financial|account(ant|ing)|legal|lawyer|tax|audit)\b/i },
+  { label: "Product Management", re: /\b(product (manager|owner|lead)|product management)\b/i },
+  { label: "DevOps & Cloud", re: /\b(devops|sre\b|site reliability|cloud (engineer|architect|ops)|kubernetes|aws|azure|gcp)\b/i },
+  { label: "Cybersecurity", re: /\b(security|cyber|infosec|penetration test|soc analyst|appsec)\b/i },
+  { label: "Customer Support", re: /\b(customer (support|success|service|experience)|help ?desk|support (engineer|specialist|agent))\b/i },
+  { label: "HR & Recruiting", re: /\b(recruit(er|ing|ment)|talent acquisition|human resources|hr (manager|generalist|business)|people ops)\b/i },
+  { label: "Writing & Content", re: /\b(writer|copywrit|content (writer|manager|creator|strategist)|editor|journalis|technical writ)\b/i },
+  { label: "Education & Teaching", re: /\b(teacher|teaching|tutor|instructor|professor|curriculum|education specialist)\b/i },
+  { label: "Operations & Admin", re: /\b(operations (manager|analyst|coordinator)|office manager|executive assistant|virtual assistant|admin(istrative)? assistant)\b/i },
+  { label: "Project Management", re: /\b(project manager|program manager|scrum master|agile coach|delivery manager)\b/i },
 ];
 const TABS = [
   { id: "all", label: "All positions" },
@@ -24,7 +34,20 @@ const TABS = [
   { id: "hybrid", label: "Hybrid" },
   { id: "onsite", label: "On-site" },
 ];
-const PER = 50;
+const PAGE_SIZES = [20, 50, 100];
+const WHEN = [
+  { id: "any", label: "Any time" },
+  { id: "d1", label: "Last 24 hours", ms: 864e5 },
+  { id: "d7", label: "Last 7 days", ms: 7 * 864e5 },
+  { id: "d30", label: "Last 30 days", ms: 30 * 864e5 },
+];
+const JTYPES = [
+  { id: "all", label: "All job types" },
+  { id: "full", label: "Full-time", re: /full.?time/i },
+  { id: "part", label: "Part-time", re: /part.?time/i },
+  { id: "contract", label: "Contract / Freelance", re: /contract|freelance|temporary/i },
+  { id: "intern", label: "Internship", re: /intern(ship)?|trainee|working student/i },
+];
 
 const ago = (iso) => {
   const d = new Date(iso);
@@ -52,6 +75,11 @@ export default function Dashboard() {
   const [city, setCity] = useState(null);
   const [includeWorldwide, setIncludeWorldwide] = useState(true);
   const [showGlobe, setShowGlobe] = useState(true);
+  const [showCharts, setShowCharts] = useState(true);
+  const [per, setPer] = useState(50);
+  const [src, setSrc] = useState("all");
+  const [when, setWhen] = useState("any");
+  const [jtype, setJtype] = useState("all");
 
   async function load() {
     setLoading(true);
@@ -147,15 +175,44 @@ export default function Dashboard() {
 
   const filtered = useMemo(() => {
     let f = tab === "all" ? base : base.filter((j) => j.mode === tab);
+    if (src !== "all") f = f.filter((j) => j.source === src);
+    const w = WHEN.find((x) => x.id === when);
+    if (w?.ms) f = f.filter((j) => Date.now() - new Date(j.date).getTime() < w.ms);
+    const t = JTYPES.find((x) => x.id === jtype);
+    if (t?.re) f = f.filter((j) => t.re.test(`${j.type} ${j.title} ${j.hay.slice(0, 300)}`));
     return [...f].sort((a, b) =>
       sort === "title" ? a.title.localeCompare(b.title)
-      : sort === "company" ? a.company.localeCompare(b.company)
+      : sort === "titleZ" ? b.title.localeCompare(a.title)
+      : sort === "company" ? (a.company || "").localeCompare(b.company || "")
+      : sort === "source" ? a.source.localeCompare(b.source) || new Date(b.date) - new Date(a.date)
+      : sort === "salary" ? (b.salary ? 1 : 0) - (a.salary ? 1 : 0) || new Date(b.date) - new Date(a.date)
+      : sort === "old" ? new Date(a.date) - new Date(b.date)
       : new Date(b.date) - new Date(a.date)
     );
-  }, [base, tab, sort]);
+  }, [base, tab, sort, src, when, jtype]);
 
-  const slice = filtered.slice(0, page * PER);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / per));
+  const cur = Math.min(page, totalPages);
+  const slice = filtered.slice((cur - 1) * per, cur * per);
   const count = (m) => base.filter((j) => j.mode === m).length;
+
+  // page numbers with ellipsis
+  const pageNums = useMemo(() => {
+    const out = new Set([1, totalPages, cur - 1, cur, cur + 1]);
+    return [...out].filter((n) => n >= 1 && n <= totalPages).sort((a, b) => a - b);
+  }, [cur, totalPages]);
+
+  const roleCounts = useMemo(
+    () => QUICK.map((c) => ({ label: c.label, count: filtered.filter((j) => c.re.test(j.hay + " " + j.title)).length })),
+    [filtered]
+  );
+
+  const srcNames = useMemo(() => [...new Set(jobs.map((j) => j.source))].sort(), [jobs]);
+
+  function goPage(n) {
+    setPage(Math.min(Math.max(1, n), totalPages));
+    document.querySelector(".listmeta")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   function selectCountry(c) {
     setCountry(c);
@@ -265,6 +322,23 @@ export default function Dashboard() {
           )}
         </div>
 
+        <div className="globepanel">
+          <div className="globepanel-head">
+            <div>
+              <div className="globepanel-title">Market insights</div>
+              <div className="globepanel-sub">Live charts — they follow every filter you apply below</div>
+            </div>
+            <button className="btn" onClick={() => setShowCharts(!showCharts)}>
+              {showCharts ? "Hide charts" : "Show charts"}
+            </button>
+          </div>
+          {showCharts && (
+            <div style={{ borderTop: "1px solid var(--border)", padding: 18 }}>
+              <Insights jobs={filtered} roles={roleCounts} />
+            </div>
+          )}
+        </div>
+
         <div className="filterbar">
           <div className="frow">
             <input
@@ -274,10 +348,37 @@ export default function Dashboard() {
               onChange={(e) => { setQ(e.target.value); setPage(1); }}
             />
             <select value={sort} onChange={(e) => setSort(e.target.value)}>
-              <option value="date">Sort: Newest</option>
+              <option value="date">Sort: Newest first</option>
+              <option value="old">Sort: Oldest first</option>
               <option value="title">Sort: Title A–Z</option>
+              <option value="titleZ">Sort: Title Z–A</option>
               <option value="company">Sort: Company A–Z</option>
+              <option value="source">Sort: Source</option>
+              <option value="salary">Sort: Salary listed first</option>
             </select>
+          </div>
+          <div className="frow" style={{ marginTop: 10 }}>
+            <select value={src} onChange={(e) => { setSrc(e.target.value); setPage(1); }}>
+              <option value="all">All sources</option>
+              {srcNames.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <select value={when} onChange={(e) => { setWhen(e.target.value); setPage(1); }}>
+              {WHEN.map((w) => <option key={w.id} value={w.id}>Posted: {w.label}</option>)}
+            </select>
+            <select value={jtype} onChange={(e) => { setJtype(e.target.value); setPage(1); }}>
+              {JTYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+            </select>
+            <select value={per} onChange={(e) => { setPer(Number(e.target.value)); setPage(1); }}>
+              {PAGE_SIZES.map((n) => <option key={n} value={n}>{n} per page</option>)}
+            </select>
+            {(src !== "all" || when !== "any" || jtype !== "all" || quick !== null || q) && (
+              <button
+                className="btn"
+                onClick={() => { setSrc("all"); setWhen("any"); setJtype("all"); setQuick(null); setQ(""); setPage(1); }}
+              >
+                Clear filters
+              </button>
+            )}
           </div>
           <div className="chiprow">
             {QUICK.map((c, i) => (
@@ -307,7 +408,7 @@ export default function Dashboard() {
 
         <div className="listmeta">
           <span>
-            {filtered.length ? `Showing ${slice.length} of ${filtered.length} positions` : ""}
+            {filtered.length ? `Showing ${(cur - 1) * per + 1}–${Math.min(cur * per, filtered.length)} of ${filtered.length.toLocaleString()} positions` : ""}
             {country ? ` in ${city ? (cityPoints.find((c) => c.name === city)?.label || city) + ", " : ""}${country}` : ""}
           </span>
           <span className="srcbadges">
@@ -351,12 +452,21 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
-            {slice.length < filtered.length && (
-              <button className="btn loadmore" onClick={() => setPage(page + 1)}>Show more</button>
+            {totalPages > 1 && (
+              <div className="pager">
+                <button className="btn" disabled={cur <= 1} onClick={() => goPage(cur - 1)}>← Prev</button>
+                {pageNums.map((n, i) => (
+                  <span key={n} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    {i > 0 && n - pageNums[i - 1] > 1 && <span className="pager-dots">…</span>}
+                    <button className={"btn pagenum" + (n === cur ? " on" : "")} onClick={() => goPage(n)}>{n}</button>
+                  </span>
+                ))}
+                <button className="btn" disabled={cur >= totalPages} onClick={() => goPage(cur + 1)}>Next →</button>
+              </div>
             )}
           </>
         )}
-        <div className="footer">Data refreshes automatically every 15 minutes from Remotive, Jobicy, Arbeitnow and The Muse.</div>
+        <div className="footer">Data refreshes automatically every 15 minutes from Remotive, RemoteOK, We Work Remotely, Himalayas, Jobicy, Arbeitnow, The Muse and more.</div>
       </main>
     </div>
   );
