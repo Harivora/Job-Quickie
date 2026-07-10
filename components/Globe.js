@@ -1,9 +1,11 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
-import GlobeGL from "react-globe.gl";
+import { useEffect, useRef } from "react";
+import { loadGlobeLib } from "@/lib/globeLib";
 
 // Landing-page globe: realistic earth over a starfield with animated
 // "job found" arcs travelling between hiring hubs.
+
+const IMG = "https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img";
 
 const HUBS = [
   { lat: 40.71, lng: -74.01 },   // New York
@@ -22,80 +24,72 @@ const HUBS = [
   { lat: 52.37, lng: 4.9 },      // Amsterdam
 ];
 
+function makeArcs() {
+  const out = [];
+  for (let i = 0; i < 22; i++) {
+    const a = HUBS[Math.floor(Math.random() * HUBS.length)];
+    let b = HUBS[Math.floor(Math.random() * HUBS.length)];
+    if (b === a) b = HUBS[(HUBS.indexOf(a) + 3) % HUBS.length];
+    out.push({
+      startLat: a.lat, startLng: a.lng,
+      endLat: b.lat, endLng: b.lng,
+      color: Math.random() > 0.5 ? "#fbbf24" : "#34d399",
+      time: 2500 + Math.random() * 3500,
+    });
+  }
+  return out;
+}
+
 export default function Globe() {
   const wrapRef = useRef(null);
-  const globeRef = useRef(null);
-  const [size, setSize] = useState({ w: 0, h: 0 });
 
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
-    const measure = () => setSize({ w: el.clientWidth, h: el.clientHeight });
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+    let g = null, ro = null, dead = false;
 
-  useEffect(() => {
-    const g = globeRef.current;
-    if (!g) return;
-    const controls = g.controls();
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.7;
-    controls.enableZoom = false;
-    g.pointOfView({ lat: 22, lng: 40, altitude: 1.9 });
-  }, [size.w]);
-
-  const arcs = useMemo(() => {
-    const out = [];
-    for (let i = 0; i < 22; i++) {
-      const a = HUBS[Math.floor(Math.random() * HUBS.length)];
-      let b = HUBS[Math.floor(Math.random() * HUBS.length)];
-      if (b === a) b = HUBS[(HUBS.indexOf(a) + 3) % HUBS.length];
-      out.push({
-        startLat: a.lat, startLng: a.lng,
-        endLat: b.lat, endLng: b.lng,
-        color: Math.random() > 0.5 ? "#fbbf24" : "#34d399",
-        time: 2500 + Math.random() * 3500,
+    loadGlobeLib().then((GlobeLib) => {
+      if (dead || !el.isConnected) return;
+      g = GlobeLib()(el)
+        .width(el.clientWidth)
+        .height(el.clientHeight)
+        .backgroundColor("rgba(0,0,0,0)")
+        .backgroundImageUrl(`${IMG}/night-sky.png`)
+        .globeImageUrl(`${IMG}/earth-blue-marble.jpg`)
+        .bumpImageUrl(`${IMG}/earth-topology.png`)
+        .atmosphereColor("#4f8cff")
+        .atmosphereAltitude(0.2)
+        .arcsData(makeArcs())
+        .arcColor("color")
+        .arcStroke(0.45)
+        .arcAltitudeAutoScale(0.4)
+        .arcDashLength(0.45)
+        .arcDashGap(0.7)
+        .arcDashAnimateTime((d) => d.time)
+        .ringsData(HUBS.map((h) => ({ lat: h.lat, lng: h.lng })))
+        .ringColor(() => (t) => `rgba(79,140,255,${1 - t})`)
+        .ringMaxRadius(2.2)
+        .ringPropagationSpeed(1.4)
+        .ringRepeatPeriod(2600)
+        .enablePointerInteraction(false)
+        .pointOfView({ lat: 22, lng: 40, altitude: 1.9 });
+      const controls = g.controls();
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 0.7;
+      controls.enableZoom = false;
+      ro = new ResizeObserver(() => {
+        if (g) g.width(el.clientWidth).height(el.clientHeight);
       });
-    }
-    return out;
+      ro.observe(el);
+    }).catch(() => {});
+
+    return () => {
+      dead = true;
+      if (ro) ro.disconnect();
+      if (g) { try { g._destructor(); } catch {} }
+      el.innerHTML = "";
+    };
   }, []);
 
-  const rings = useMemo(
-    () => HUBS.map((h) => ({ lat: h.lat, lng: h.lng })),
-    []
-  );
-
-  return (
-    <div ref={wrapRef} style={{ width: "100%", height: "100%" }}>
-      {size.w > 0 && (
-        <GlobeGL
-          ref={globeRef}
-          width={size.w}
-          height={size.h}
-          backgroundColor="rgba(0,0,0,0)"
-          backgroundImageUrl="https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/night-sky.png"
-          globeImageUrl="https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-blue-marble.jpg"
-          bumpImageUrl="https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-topology.png"
-          atmosphereColor="#4f8cff"
-          atmosphereAltitude={0.2}
-          arcsData={arcs}
-          arcColor="color"
-          arcStroke={0.45}
-          arcAltitudeAutoScale={0.4}
-          arcDashLength={0.45}
-          arcDashGap={0.7}
-          arcDashAnimateTime={(d) => d.time}
-          ringsData={rings}
-          ringColor={() => (t) => `rgba(79,140,255,${1 - t})`}
-          ringMaxRadius={2.2}
-          ringPropagationSpeed={1.4}
-          ringRepeatPeriod={2600}
-          enablePointerInteraction={false}
-        />
-      )}
-    </div>
-  );
+  return <div ref={wrapRef} style={{ width: "100%", height: "100%" }} />;
 }

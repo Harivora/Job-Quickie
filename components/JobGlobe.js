@@ -1,22 +1,20 @@
 "use client";
-import { useEffect, useRef, useState, useMemo } from "react";
-import Globe from "react-globe.gl";
-import { feature as topoFeature } from "topojson-client";
+import { useEffect, useRef, useState } from "react";
+import { loadGlobeLib } from "@/lib/globeLib";
 import { matchLocation } from "@/lib/geo";
 
 // Real earth with country borders (Natural Earth data), scroll zoom,
 // click a country to outline it and fly in, click a city marker to go deeper.
-// Assets are versioned npm packages served via jsDelivr/unpkg with fallbacks.
+// globe.gl is loaded as a prebuilt browser bundle (see lib/globeLib.js).
 
-const TOPOJSON_URLS = [
-  "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json",
-  "https://unpkg.com/world-atlas@2.0.2/countries-110m.json",
+const GEOJSON_URLS = [
+  "https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/country-polygons/ne_110m_admin_0_countries.geojson",
+  "https://unpkg.com/three-globe@2.31.1/example/country-polygons/ne_110m_admin_0_countries.geojson",
 ];
-const EARTH_IMG = "https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-blue-marble.jpg";
-const BUMP_IMG = "https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-topology.png";
+const IMG = "https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img";
 
 function featureName(f) {
-  return f?.properties?.name || f?.properties?.NAME || f?.properties?.ADMIN || "";
+  return f?.properties?.NAME || f?.properties?.name || f?.properties?.ADMIN || "";
 }
 
 // centroid + rough span of a (Multi)Polygon feature
@@ -39,6 +37,9 @@ function featureCenter(f) {
   return { lat: sy / n, lng: sx / n, span };
 }
 
+const tip = (title, body) =>
+  `<div style="background:rgba(8,12,22,.92);border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:5px 10px;font-size:12px;color:#e6ebf4;font-family:system-ui"><b>${title}</b>${body}</div>`;
+
 export default function JobGlobe({
   counts = {},
   selected = null,
@@ -48,38 +49,88 @@ export default function JobGlobe({
   onSelectCity,
 }) {
   const wrapRef = useRef(null);
-  const globeRef = useRef(null);
-  const [size, setSize] = useState({ w: 0, h: 0 });
+  const gRef = useRef(null);          // globe.gl instance
+  const propsRef = useRef({});        // latest props for event handlers
+  const hoveredRef = useRef(null);
+  const [ready, setReady] = useState(false);
   const [features, setFeatures] = useState([]);
-  const [hovered, setHovered] = useState(null);
 
-  // measure container
+  propsRef.current = { counts, selected, onSelect, cityPoints, selectedCity, onSelectCity };
+
+  // create globe instance
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
-    const measure = () =>
-      setSize({ w: el.clientWidth, h: el.clientHeight });
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
+    let dead = false, ro = null;
+
+    loadGlobeLib().then((GlobeLib) => {
+      if (dead || !el.isConnected) return;
+      const g = GlobeLib()(el)
+        .width(el.clientWidth)
+        .height(el.clientHeight)
+        .backgroundColor("rgba(0,0,0,0)")
+        .globeImageUrl(`${IMG}/earth-blue-marble.jpg`)
+        .bumpImageUrl(`${IMG}/earth-topology.png`)
+        .atmosphereColor("#3b82f6")
+        .atmosphereAltitude(0.18)
+        .polygonsTransitionDuration(250)
+        .onPolygonHover((h) => {
+          hoveredRef.current = h;
+          el.style.cursor = h ? "pointer" : "grab";
+          applyStyles(g, propsRef, hoveredRef);
+        })
+        .onPolygonClick((f) => {
+          const p = propsRef.current;
+          if (p.onSelect) p.onSelect(f.__jq === p.selected ? null : f.__jq);
+        })
+        .polygonLabel((f) => {
+          const c = propsRef.current.counts[f.__jq] || 0;
+          return tip(f.__jq, ` — ${c} open position${c === 1 ? "" : "s"}${c ? "<br/><span style='color:#98a4b5'>Click to explore</span>" : ""}`);
+        })
+        .pointLat("lat")
+        .pointLng("lng")
+        .pointsTransitionDuration(300)
+        .onPointClick((d) => {
+          const p = propsRef.current;
+          if (p.onSelectCity) p.onSelectCity(d.name === p.selectedCity ? null : d.name);
+        })
+        .pointLabel((d) => tip(d.label, ` — ${d.count} job${d.count === 1 ? "" : "s"}`))
+        .pointOfView({ lat: 20, lng: 10, altitude: 2.2 });
+      const controls = g.controls();
+      controls.enableZoom = true;
+      controls.zoomSpeed = 0.8;
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 0.55;
+      controls.minDistance = 130;
+      controls.maxDistance = 480;
+      gRef.current = g;
+      ro = new ResizeObserver(() => g.width(el.clientWidth).height(el.clientHeight));
+      ro.observe(el);
+      setReady(true);
+    }).catch(() => {});
+
+    return () => {
+      dead = true;
+      if (ro) ro.disconnect();
+      if (gRef.current) { try { gRef.current._destructor(); } catch {} gRef.current = null; }
+      el.innerHTML = "";
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // load country borders (TopoJSON → GeoJSON)
+  // load country borders
   useEffect(() => {
     let dead = false;
     (async () => {
-      for (const url of TOPOJSON_URLS) {
+      for (const url of GEOJSON_URLS) {
         try {
           const res = await fetch(url);
           if (!res.ok) continue;
-          const topo = await res.json();
+          const geo = await res.json();
           if (dead) return;
-          const geo = topoFeature(topo, topo.objects.countries);
           const feats = (geo.features || [])
             .filter((f) => featureName(f) !== "Antarctica")
             .map((f) => {
-              // map the GeoJSON country to our canonical country name
               const m = matchLocation(featureName(f), "");
               f.__jq = m.countries[0] || featureName(f);
               return f;
@@ -92,23 +143,20 @@ export default function JobGlobe({
     return () => { dead = true; };
   }, []);
 
-  // globe controls: zoom enabled, slow auto-rotate until a country is picked
+  // push data + styles into the globe when anything changes
   useEffect(() => {
-    const g = globeRef.current;
-    if (!g) return;
-    const controls = g.controls();
-    controls.enableZoom = true;
-    controls.zoomSpeed = 0.8;
-    controls.autoRotate = !selected;
-    controls.autoRotateSpeed = 0.55;
-    controls.minDistance = 130;
-    controls.maxDistance = 480;
-  }, [selected, features]);
+    const g = gRef.current;
+    if (!g || !ready) return;
+    g.polygonsData(features);
+    g.pointsData(selected ? cityPoints : []);
+    applyStyles(g, propsRef, hoveredRef);
+    g.controls().autoRotate = !selected;
+  }, [ready, features, counts, selected, cityPoints, selectedCity]);
 
   // fly the camera when selection changes
   useEffect(() => {
-    const g = globeRef.current;
-    if (!g) return;
+    const g = gRef.current;
+    if (!g || !ready) return;
     if (selectedCity) {
       const cp = cityPoints.find((c) => c.name === selectedCity);
       if (cp) { g.pointOfView({ lat: cp.lat, lng: cp.lng, altitude: 0.35 }, 1200); return; }
@@ -124,71 +172,11 @@ export default function JobGlobe({
     }
     g.pointOfView({ lat: 20, lng: 10, altitude: 2.2 }, 1200);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, selectedCity, features]);
-
-  const maxCount = useMemo(
-    () => Math.max(1, ...Object.values(counts)),
-    [counts]
-  );
-
-  const capColor = (f) => {
-    if (f.__jq === selected) return "rgba(59,130,246,0.5)";
-    if (f === hovered) return "rgba(96,165,250,0.35)";
-    const c = counts[f.__jq] || 0;
-    if (!c) return "rgba(255,255,255,0.02)";
-    const t = Math.sqrt(c / maxCount);
-    return `rgba(251,191,36,${0.1 + t * 0.35})`;
-  };
+  }, [ready, selected, selectedCity, features]);
 
   return (
-    <div ref={wrapRef} style={{ position: "relative", width: "100%", height: "100%", cursor: hovered ? "pointer" : "grab" }}>
-      {size.w > 0 && (
-        <Globe
-          ref={globeRef}
-          width={size.w}
-          height={size.h}
-          backgroundColor="rgba(0,0,0,0)"
-          globeImageUrl={EARTH_IMG}
-          bumpImageUrl={BUMP_IMG}
-          atmosphereColor="#3b82f6"
-          atmosphereAltitude={0.18}
-          polygonsData={features}
-          polygonCapColor={capColor}
-          polygonSideColor={() => "rgba(59,130,246,0.06)"}
-          polygonStrokeColor={(f) =>
-            f.__jq === selected ? "rgba(147,197,253,0.9)" : "rgba(255,255,255,0.28)"
-          }
-          polygonAltitude={(f) => (f.__jq === selected ? 0.015 : 0.004)}
-          polygonsTransitionDuration={250}
-          onPolygonHover={setHovered}
-          onPolygonClick={(f) => {
-            if (!onSelect) return;
-            onSelect(f.__jq === selected ? null : f.__jq);
-          }}
-          polygonLabel={(f) => {
-            const c = counts[f.__jq] || 0;
-            return `<div style="background:rgba(8,12,22,.92);border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:5px 10px;font-size:12px;color:#e6ebf4;font-family:system-ui">
-              <b>${f.__jq}</b> — ${c} open position${c === 1 ? "" : "s"}${c ? "<br/><span style='color:#98a4b5'>Click to explore</span>" : ""}
-            </div>`;
-          }}
-          pointsData={selected ? cityPoints : []}
-          pointLat={(d) => d.lat}
-          pointLng={(d) => d.lng}
-          pointColor={(d) => (d.name === selectedCity ? "#34d399" : "#fbbf24")}
-          pointAltitude={(d) => (d.name === selectedCity ? 0.06 : 0.03)}
-          pointRadius={(d) => 0.12 + 0.25 * Math.sqrt(d.count / Math.max(1, cityPoints[0]?.count || 1))}
-          pointsTransitionDuration={300}
-          onPointClick={(d) => {
-            if (!onSelectCity) return;
-            onSelectCity(d.name === selectedCity ? null : d.name);
-          }}
-          pointLabel={(d) =>
-            `<div style="background:rgba(8,12,22,.92);border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:5px 10px;font-size:12px;color:#e6ebf4;font-family:system-ui">
-              <b>${d.label}</b> — ${d.count} job${d.count === 1 ? "" : "s"}
-            </div>`
-          }
-        />
-      )}
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      <div ref={wrapRef} style={{ width: "100%", height: "100%", cursor: "grab" }} />
       <div style={{
         position: "absolute", bottom: 10, left: 14, color: "#64707f",
         fontSize: 11.5, pointerEvents: "none", userSelect: "none",
@@ -197,4 +185,26 @@ export default function JobGlobe({
       </div>
     </div>
   );
+}
+
+function applyStyles(g, propsRef, hoveredRef) {
+  const { counts, selected, cityPoints, selectedCity } = propsRef.current;
+  const maxCount = Math.max(1, ...Object.values(counts));
+  const topCity = Math.max(1, cityPoints[0]?.count || 1);
+  g.polygonCapColor((f) => {
+    if (f.__jq === selected) return "rgba(59,130,246,0.5)";
+    if (f === hoveredRef.current) return "rgba(96,165,250,0.35)";
+    const c = counts[f.__jq] || 0;
+    if (!c) return "rgba(255,255,255,0.02)";
+    const t = Math.sqrt(c / maxCount);
+    return `rgba(251,191,36,${0.1 + t * 0.35})`;
+  });
+  g.polygonSideColor(() => "rgba(59,130,246,0.06)");
+  g.polygonStrokeColor((f) =>
+    f.__jq === selected ? "rgba(147,197,253,0.9)" : "rgba(255,255,255,0.28)"
+  );
+  g.polygonAltitude((f) => (f.__jq === selected ? 0.015 : 0.004));
+  g.pointColor((d) => (d.name === selectedCity ? "#34d399" : "#fbbf24"));
+  g.pointAltitude((d) => (d.name === selectedCity ? 0.06 : 0.03));
+  g.pointRadius((d) => 0.12 + 0.25 * Math.sqrt(d.count / topCity));
 }
