@@ -117,6 +117,27 @@ input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px r
 .loadmore { display: block; margin: 20px auto; }
 .footer { color: var(--faint); font-size: 12px; padding: 28px 0 40px; text-align: center; }
 
+/* ---- Profile ---- */
+.page-loading { display: flex; align-items: center; justify-content: center; min-height: 60vh; color: var(--muted); font-size: 14px; }
+.profile-head { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+.pavatar { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #2f7bff, #6ea0ff); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700; flex-shrink: 0; }
+.profile-name { font-size: 22px; font-weight: 700; }
+.profile-sub { color: var(--muted); font-size: 13px; margin-top: 3px; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 22px; margin-bottom: 16px; }
+.panel-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+.panel-hint { color: var(--muted); font-size: 12.5px; margin: -6px 0 12px; }
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.field span { font-size: 12.5px; color: var(--muted); font-weight: 500; }
+.field input { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); border-radius: 8px; padding: 9px 12px; font-size: 13.5px; }
+.field input:disabled { opacity: .6; cursor: not-allowed; }
+.chips-edit { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border: 1px solid var(--border2); background: var(--surface2); border-radius: 10px; padding: 10px; }
+.chips-edit input { flex: 1; min-width: 140px; background: none; border: none; color: var(--text); font-size: 13px; padding: 4px; }
+.chips-edit .chip.on { display: inline-flex; align-items: center; gap: 6px; }
+.chips-edit .chip.on button { background: none; border: none; color: rgba(255,255,255,.8); font-size: 14px; cursor: pointer; padding: 0; line-height: 1; }
+.suggested { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.pw-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+@media (max-width: 700px) { .pw-grid { grid-template-columns: 1fr; } }
+
 /* ---- Landing / auth ---- */
 .landing { min-height: 100vh; background: #060a14; color: #e8ecf6; display: flex; flex-direction: column; }
 .landing-nav { display: flex; justify-content: space-between; align-items: center; padding: 20px 32px; }

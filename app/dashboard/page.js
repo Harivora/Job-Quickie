@@ -174,6 +174,7 @@ export default function Dashboard() {
           <div className="top-right">
             {updated && <span className="updated">Updated {updated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
             <button className="btn primary" onClick={load} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</button>
+            <button className="btn" onClick={() => router.push("/profile")}>Profile</button>
             <button className="btn" onClick={logout}>Sign out</button>
           </div>
         </div>

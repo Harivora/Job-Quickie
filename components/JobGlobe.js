@@ -87,14 +87,28 @@ export default function JobGlobe({
           const c = propsRef.current.counts[f.__jq] || 0;
           return tip(f.__jq, ` — ${c} open position${c === 1 ? "" : "s"}${c ? "<br/><span style='color:#98a4b5'>Click to explore</span>" : ""}`);
         })
-        .pointLat("lat")
-        .pointLng("lng")
-        .pointsTransitionDuration(300)
-        .onPointClick((d) => {
+        .htmlLat("lat")
+        .htmlLng("lng")
+        .htmlAltitude(0.01)
+        .htmlElement((d) => {
           const p = propsRef.current;
-          if (p.onSelectCity) p.onSelectCity(d.name === p.selectedCity ? null : d.name);
+          const sel = d.name === p.selectedCity;
+          const el = document.createElement("div");
+          el.style.cssText =
+            "transform:translate(-50%,-100%);cursor:pointer;pointer-events:auto;text-align:center;font-family:system-ui;transition:filter .15s";
+          el.innerHTML =
+            `<div style="display:inline-flex;align-items:center;gap:6px;background:${sel ? "rgba(13,148,110,.95)" : "rgba(23,52,110,.92)"};border:1px solid ${sel ? "rgba(110,231,183,.9)" : "rgba(147,197,253,.75)"};color:#fff;border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:600;white-space:nowrap;box-shadow:0 0 14px ${sel ? "rgba(52,211,153,.55)" : "rgba(59,130,246,.45)"}">` +
+            `<span style="width:7px;height:7px;border-radius:50%;background:${sel ? "#6ee7b7" : "#93c5fd"};box-shadow:0 0 6px ${sel ? "#6ee7b7" : "#93c5fd"}"></span>${d.label} · ${d.count}</div>` +
+            `<div style="width:1.5px;height:9px;background:rgba(255,255,255,.55);margin:0 auto"></div>`;
+          el.onmouseenter = () => (el.style.filter = "brightness(1.25)");
+          el.onmouseleave = () => (el.style.filter = "");
+          el.onclick = (ev) => {
+            ev.stopPropagation();
+            const pp = propsRef.current;
+            if (pp.onSelectCity) pp.onSelectCity(d.name === pp.selectedCity ? null : d.name);
+          };
+          return el;
         })
-        .pointLabel((d) => tip(d.label, ` — ${d.count} job${d.count === 1 ? "" : "s"}`))
         .pointOfView({ lat: 20, lng: 10, altitude: 2.2 });
       const controls = g.controls();
       controls.enableZoom = true;
@@ -148,7 +162,7 @@ export default function JobGlobe({
     const g = gRef.current;
     if (!g || !ready) return;
     g.polygonsData(features);
-    g.pointsData(selected ? cityPoints : []);
+    g.htmlElementsData(selected ? [...cityPoints] : []);
     applyStyles(g, propsRef, hoveredRef);
     g.controls().autoRotate = !selected;
   }, [ready, features, counts, selected, cityPoints, selectedCity]);
@@ -188,9 +202,8 @@ export default function JobGlobe({
 }
 
 function applyStyles(g, propsRef, hoveredRef) {
-  const { counts, selected, cityPoints, selectedCity } = propsRef.current;
+  const { counts, selected } = propsRef.current;
   const maxCount = Math.max(1, ...Object.values(counts));
-  const topCity = Math.max(1, cityPoints[0]?.count || 1);
   g.polygonCapColor((f) => {
     if (f.__jq === selected) return "rgba(59,130,246,0.5)";
     if (f === hoveredRef.current) return "rgba(96,165,250,0.35)";
@@ -204,7 +217,4 @@ function applyStyles(g, propsRef, hoveredRef) {
     f.__jq === selected ? "rgba(147,197,253,0.9)" : "rgba(255,255,255,0.28)"
   );
   g.polygonAltitude((f) => (f.__jq === selected ? 0.015 : 0.004));
-  g.pointColor((d) => (d.name === selectedCity ? "#34d399" : "#fbbf24"));
-  g.pointAltitude((d) => (d.name === selectedCity ? 0.06 : 0.03));
-  g.pointRadius((d) => 0.12 + 0.25 * Math.sqrt(d.count / topCity));
 }
