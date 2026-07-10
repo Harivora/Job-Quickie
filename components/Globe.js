@@ -54,7 +54,6 @@ export default function Globe() {
         .width(el.clientWidth)
         .height(el.clientHeight)
         .backgroundColor("rgba(0,0,0,0)")
-        .backgroundImageUrl(`${IMG}/night-sky.png`)
         .globeImageUrl(`${IMG}/earth-blue-marble.jpg`)
         .bumpImageUrl(`${IMG}/earth-topology.png`)
         .atmosphereColor("#4f8cff")

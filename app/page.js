@@ -50,8 +50,9 @@ export default function Landing() {
           <h1>The job market,<br /><span>live</span> on one screen.</h1>
           <p>
             Remote, hybrid and on-site openings aggregated in real time from
-            Remotive, Jobicy, Arbeitnow and The Muse. Access is
-            approval-based — sign up and an administrator will verify you.
+            Remotive, RemoteOK, We Work Remotely, Himalayas, Jobicy, Arbeitnow,
+            The Muse and more. Access is approval-based — sign up and an
+            administrator will verify you.
           </p>
           <div className="authcard">
             <h2>{mode === "login" ? "Sign in" : "Create an account"}</h2>
