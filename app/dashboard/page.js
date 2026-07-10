@@ -80,6 +80,26 @@ export default function Dashboard() {
   const [src, setSrc] = useState("all");
   const [when, setWhen] = useState("any");
   const [jtype, setJtype] = useState("all");
+  const [sel, setSel] = useState(null);
+  const [selOpen, setSelOpen] = useState(false);
+  const [saved, setSaved] = useState({});
+  const [showSaved, setShowSaved] = useState(false);
+
+  const jkey = (j) => `${j.title}|${j.company}`.toLowerCase();
+
+  useEffect(() => {
+    try { setSaved(JSON.parse(localStorage.getItem("jq_saved") || "{}")); } catch {}
+  }, []);
+
+  function toggleSave(j) {
+    setSaved((prev) => {
+      const next = { ...prev };
+      const k = jkey(j);
+      if (next[k]) delete next[k]; else next[k] = true;
+      try { localStorage.setItem("jq_saved", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
 
   async function load() {
     setLoading(true);
@@ -180,6 +200,7 @@ export default function Dashboard() {
     if (w?.ms) f = f.filter((j) => Date.now() - new Date(j.date).getTime() < w.ms);
     const t = JTYPES.find((x) => x.id === jtype);
     if (t?.re) f = f.filter((j) => t.re.test(`${j.type} ${j.title} ${j.hay.slice(0, 300)}`));
+    if (showSaved) f = f.filter((j) => saved[jkey(j)]);
     return [...f].sort((a, b) =>
       sort === "title" ? a.title.localeCompare(b.title)
       : sort === "titleZ" ? b.title.localeCompare(a.title)
@@ -189,7 +210,7 @@ export default function Dashboard() {
       : sort === "old" ? new Date(a.date) - new Date(b.date)
       : new Date(b.date) - new Date(a.date)
     );
-  }, [base, tab, sort, src, when, jtype]);
+  }, [base, tab, sort, src, when, jtype, showSaved, saved]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / per));
   const cur = Math.min(page, totalPages);
@@ -208,6 +229,15 @@ export default function Dashboard() {
   );
 
   const srcNames = useMemo(() => [...new Set(jobs.map((j) => j.source))].sort(), [jobs]);
+
+  // keep the detail pane pointing at a visible job (LinkedIn-style)
+  useEffect(() => {
+    if (!slice.length) { setSel(null); return; }
+    if (!sel || !slice.some((j) => jkey(j) === jkey(sel))) setSel(slice[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, cur, per]);
+
+  const savedCount = useMemo(() => jobs.filter((j) => saved[jkey(j)]).length, [jobs, saved]);
 
   function goPage(n) {
     setPage(Math.min(Math.max(1, n), totalPages));
@@ -404,6 +434,12 @@ export default function Dashboard() {
               <span className="n">{t.id === "all" ? base.length : count(t.id)}</span>
             </button>
           ))}
+          <button
+            className={"tab saved-tab" + (showSaved ? " active" : "")}
+            onClick={() => { setShowSaved(!showSaved); setPage(1); }}
+          >
+            ★ Saved<span className="n">{savedCount}</span>
+          </button>
         </div>
 
         <div className="listmeta">
@@ -427,30 +463,95 @@ export default function Dashboard() {
           <div className="state"><h3>No matching positions</h3>Try a broader search, another country, or clear the filters.</div>
         ) : (
           <>
-            <div className="joblist">
-              {slice.map((j, i) => (
-                <div className="job" key={i}>
-                  {j.logo ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img className="avatar" src={j.logo} alt="" loading="lazy" />
-                  ) : (
-                    <div className="avatar ph">{(j.company || "?")[0].toUpperCase()}</div>
-                  )}
-                  <div className="jmain">
-                    <a className="jtitle" href={j.url} target="_blank" rel="noopener noreferrer">{j.title}</a>
-                    <div className="jsub">
-                      <span>{j.company}</span>
-                      {j.location && <><span className="sep">·</span><span>{j.location.slice(0, 42)}</span></>}
-                      {j.type && <><span className="sep">·</span><span>{j.type.slice(0, 30)}</span></>}
-                      {j.salary && <><span className="sep">·</span><span>{j.salary.slice(0, 30)}</span></>}
+            <div className="browse">
+              <div className="joblist">
+                {slice.map((j, i) => (
+                  <div
+                    className={"job" + (sel && jkey(sel) === jkey(j) ? " active" : "")}
+                    key={i}
+                    onClick={() => { setSel(j); setSelOpen(true); }}
+                  >
+                    {j.logo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img className="avatar" src={j.logo} alt="" loading="lazy" />
+                    ) : (
+                      <div className="avatar ph">{(j.company || "?")[0].toUpperCase()}</div>
+                    )}
+                    <div className="jmain">
+                      <span className="jtitle">{j.title}</span>
+                      <div className="jsub">
+                        <span>{j.company}</span>
+                        {j.location && <><span className="sep">·</span><span>{j.location.slice(0, 42)}</span></>}
+                        {j.salary && <><span className="sep">·</span><span className="jsalary">{j.salary.slice(0, 30)}</span></>}
+                      </div>
+                    </div>
+                    <div className="jright">
+                      <span className={"pill " + j.mode}>{j.mode === "onsite" ? "On-site" : j.mode[0].toUpperCase() + j.mode.slice(1)}</span>
+                      <span className="jdate">{ago(j.date)}</span>
+                      <button
+                        className={"savebtn" + (saved[jkey(j)] ? " on" : "")}
+                        title={saved[jkey(j)] ? "Remove from saved" : "Save job"}
+                        onClick={(e) => { e.stopPropagation(); toggleSave(j); }}
+                      >
+                        {saved[jkey(j)] ? "★" : "☆"}
+                      </button>
                     </div>
                   </div>
-                  <div className="jright">
-                    <span className={"pill " + j.mode}>{j.mode === "onsite" ? "On-site" : j.mode[0].toUpperCase() + j.mode.slice(1)}</span>
-                    <span className="jdate">{ago(j.date)}</span>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
+
+              <aside className={"jobdetail" + (selOpen ? " open" : "")}>
+                {sel ? (
+                  <>
+                    <button className="btn jd-close" onClick={() => setSelOpen(false)}>✕ Close</button>
+                    <div className="jd-head">
+                      {sel.logo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img className="avatar" src={sel.logo} alt="" />
+                      ) : (
+                        <div className="avatar ph">{(sel.company || "?")[0].toUpperCase()}</div>
+                      )}
+                      <div>
+                        <h2 className="jd-title">{sel.title}</h2>
+                        <div className="jd-company">{sel.company}{sel.location ? ` · ${sel.location.slice(0, 60)}` : ""}</div>
+                      </div>
+                    </div>
+                    <div className="jd-pills">
+                      <span className={"pill " + sel.mode}>{sel.mode === "onsite" ? "On-site" : sel.mode[0].toUpperCase() + sel.mode.slice(1)}</span>
+                      {sel.type && <span className="pill">{sel.type.slice(0, 28)}</span>}
+                      {sel.salary && <span className="pill salary">{sel.salary.slice(0, 30)}</span>}
+                      <span className="pill">{sel.source}</span>
+                      <span className="pill">{ago(sel.date)}</span>
+                    </div>
+                    <div className="jd-actions">
+                      <a className="btn primary" href={sel.url} target="_blank" rel="noopener noreferrer">Apply now ↗</a>
+                      <button className="btn" onClick={() => toggleSave(sel)}>
+                        {saved[jkey(sel)] ? "★ Saved" : "☆ Save"}
+                      </button>
+                    </div>
+                    {sel.desc && (
+                      <>
+                        <div className="jd-sect">About this role</div>
+                        <p className="jd-desc">{sel.desc}{sel.desc.length >= 490 ? "…" : ""}</p>
+                      </>
+                    )}
+                    <div className="jd-sect">Details</div>
+                    <div className="jd-meta">
+                      <div><span>Company</span><b>{sel.company || "—"}</b></div>
+                      <div><span>Location</span><b>{sel.location || "—"}</b></div>
+                      <div><span>Work mode</span><b>{sel.mode === "onsite" ? "On-site" : sel.mode[0].toUpperCase() + sel.mode.slice(1)}</b></div>
+                      {sel.type && <div><span>Job type</span><b>{sel.type}</b></div>}
+                      {sel.salary && <div><span>Salary</span><b>{sel.salary}</b></div>}
+                      {sel.category && <div><span>Category</span><b>{sel.category.slice(0, 60)}</b></div>}
+                      <div><span>Source</span><b>{sel.source}</b></div>
+                      <div><span>Posted</span><b>{new Date(sel.date).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</b></div>
+                    </div>
+                    <div className="jd-note">You&apos;ll complete the application on {sel.source} or the company&apos;s site.</div>
+                  </>
+                ) : (
+                  <div className="jd-empty">Select a job to see the details.</div>
+                )}
+              </aside>
             </div>
             {totalPages > 1 && (
               <div className="pager">
