@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Loader from "@/components/Loader";
 import dynamic from "next/dynamic";
 import { matchLocation, CITIES } from "@/lib/geo";
 
@@ -320,7 +321,7 @@ export default function Dashboard() {
         </div>
 
         {loading && !jobs.length ? (
-          <div className="state"><div className="spinner" />Loading live listings…</div>
+          <div className="state"><Loader label="Fetching live listings from all sources…" /></div>
         ) : !filtered.length ? (
           <div className="state"><h3>No matching positions</h3>Try a broader search, another country, or clear the filters.</div>
         ) : (

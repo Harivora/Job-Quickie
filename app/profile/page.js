@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Loader from "@/components/Loader";
 
 const SUGGESTED = [
   "JavaScript", "TypeScript", "React", "Next.js", "Node.js", "Python",
@@ -23,12 +24,25 @@ export default function ProfilePage() {
 
   useEffect(() => {
     (async () => {
-      const res = await fetch("/api/profile");
-      if (res.status === 401) { router.replace("/"); return; }
-      const d = await res.json();
-      setUser(d.user);
-      setName(d.user.name || "");
-      setSkills(d.user.skills || []);
+      try {
+        const res = await fetch("/api/profile");
+        if (res.status === 401) { router.replace("/"); return; }
+        const d = await res.json();
+        if (!res.ok || !d.user) {
+          setMsg({ ok: false, text: d.error || "Could not load your profile. Try signing in again." });
+          setUser({ email: "", name: "", skills: [], loadFailed: true });
+          return;
+        }
+        setUser(d.user);
+        setName(d.user.name || "");
+        setSkills(d.user.skills || []);
+        if (d.user.recordMissing) {
+          setMsg({ ok: false, text: "Your account record was reset on the server (this happens when the host redeploys without persistent storage). You can browse, but sign out and register again to save profile changes." });
+        }
+      } catch {
+        setMsg({ ok: false, text: "Network error while loading your profile." });
+        setUser({ email: "", name: "", skills: [], loadFailed: true });
+      }
     })();
   }, [router]);
 
@@ -64,9 +78,9 @@ export default function ProfilePage() {
     setMsg({ ok: true, text: newPw ? "Profile and password updated." : "Profile updated." });
   }
 
-  if (!user) return <div className="page-loading">Loading profile…</div>;
+  if (!user) return <Loader full label="Loading your profile…" />;
 
-  const initial = (user.name || user.email || "?").trim()[0].toUpperCase();
+  const initial = ((user.name || user.email || "?").trim()[0] || "?").toUpperCase();
 
   return (
     <div>

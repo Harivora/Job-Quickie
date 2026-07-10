@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { loadGlobeLib } from "@/lib/globeLib";
 import { matchLocation } from "@/lib/geo";
+import Loader from "@/components/Loader";
 
 // Real earth with country borders (Natural Earth data), scroll zoom,
 // click a country to outline it and fly in, click a city marker to go deeper.
@@ -190,6 +191,11 @@ export default function JobGlobe({
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      {!ready && (
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Loader label="Preparing the globe…" />
+        </div>
+      )}
       <div ref={wrapRef} style={{ width: "100%", height: "100%", cursor: "grab" }} />
       <div style={{
         position: "absolute", bottom: 10, left: 14, color: "#64707f",

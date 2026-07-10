@@ -1,6 +1,7 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { loadGlobeLib } from "@/lib/globeLib";
+import Loader from "@/components/Loader";
 
 // Landing-page globe: realistic earth over a starfield with animated
 // "job found" arcs travelling between hiring hubs.
@@ -42,6 +43,7 @@ function makeArcs() {
 
 export default function Globe() {
   const wrapRef = useRef(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -80,6 +82,7 @@ export default function Globe() {
         if (g) g.width(el.clientWidth).height(el.clientHeight);
       });
       ro.observe(el);
+      setReady(true);
     }).catch(() => {});
 
     return () => {
@@ -90,5 +93,14 @@ export default function Globe() {
     };
   }, []);
 
-  return <div ref={wrapRef} style={{ width: "100%", height: "100%" }} />;
+  return (
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      {!ready && (
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Loader label="Spinning up the globe…" />
+        </div>
+      )}
+      <div ref={wrapRef} style={{ width: "100%", height: "100%" }} />
+    </div>
+  );
 }

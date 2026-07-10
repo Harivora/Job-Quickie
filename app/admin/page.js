@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Loader from "@/components/Loader";
 
 export default function Admin() {
   const router = useRouter();
@@ -78,7 +79,7 @@ export default function Admin() {
         {error && <div className="banner">{error}</div>}
         <h2 className="section-title">Pending approval ({pending.length})</h2>
         {loading ? (
-          <div className="state"><div className="spinner" />Loading…</div>
+          <div className="state"><Loader label="Loading requests…" size={56} /></div>
         ) : pending.length === 0 ? (
           <div className="state">No pending access requests.</div>
         ) : (
