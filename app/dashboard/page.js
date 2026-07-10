@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { matchLocation, CITIES } from "@/lib/geo";
 import Insights from "@/components/Insights";
 import ThemeToggle from "@/components/ThemeToggle";
+import JobBot from "@/components/JobBot";
 
 const JobGlobe = dynamic(() => import("@/components/JobGlobe"), { ssr: false });
 
@@ -41,6 +42,12 @@ const WHEN = [
   { id: "d1", label: "Last 24 hours", ms: 864e5 },
   { id: "d7", label: "Last 7 days", ms: 7 * 864e5 },
   { id: "d30", label: "Last 30 days", ms: 30 * 864e5 },
+];
+const EXPS = [
+  { id: "all", label: "Any experience" },
+  { id: "entry", label: "Entry / Fresher", re: /\b(intern|junior|entry.?level|graduate|trainee|fresher|associate)\b/i },
+  { id: "mid", label: "Mid level" },
+  { id: "senior", label: "Senior / Lead", re: /\b(senior|staff|principal|lead|head of|director|vp|chief)\b/i },
 ];
 const JTYPES = [
   { id: "all", label: "All job types" },
@@ -90,6 +97,7 @@ export default function Dashboard() {
   const [viewed, setViewed] = useState({});
   const [copied, setCopied] = useState(false);
   const [hasSal, setHasSal] = useState(false);
+  const [exp, setExp] = useState("all");
 
   const jkey = (j) => `${j.title}|${j.company}`.toLowerCase();
 
@@ -226,6 +234,9 @@ export default function Dashboard() {
     if (t?.re) f = f.filter((j) => t.re.test(`${j.type} ${j.title} ${j.hay.slice(0, 300)}`));
     if (showSaved) f = f.filter((j) => saved[jkey(j)]);
     if (hasSal) f = f.filter((j) => j.salary);
+    if (exp === "entry") f = f.filter((j) => EXPS[1].re.test(j.title + " " + j.type));
+    else if (exp === "senior") f = f.filter((j) => EXPS[3].re.test(j.title + " " + j.type));
+    else if (exp === "mid") f = f.filter((j) => !EXPS[1].re.test(j.title + " " + j.type) && !EXPS[3].re.test(j.title + " " + j.type));
     if (forYou && mySkills.length) {
       f = f.filter((j) => matchSkills(j).length > 0);
       return [...f].sort((a, b) =>
@@ -242,7 +253,7 @@ export default function Dashboard() {
       : new Date(b.date) - new Date(a.date)
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [base, tab, sort, src, when, jtype, showSaved, saved, hasSal, forYou, mySkills]);
+  }, [base, tab, sort, src, when, jtype, showSaved, saved, hasSal, forYou, mySkills, exp]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / per));
   const cur = Math.min(page, totalPages);
@@ -259,6 +270,23 @@ export default function Dashboard() {
     () => QUICK.map((c) => ({ label: c.label, count: filtered.filter((j) => c.re.test(j.hay + " " + j.title)).length })),
     [filtered]
   );
+
+  // chip counts stay stable (computed on the full set) so they show what you'd get
+  const quickCounts = useMemo(
+    () => QUICK.map((c) => jobs.filter((j) => c.re.test(j.hay + " " + j.title)).length),
+    [jobs]
+  );
+
+  function botApply(p) {
+    setQ(p.q || "");
+    setTab(p.tab);
+    setJtype(p.jtype);
+    setWhen(p.when);
+    setForYou(p.forYou);
+    setQuick(null); setSrc("all"); setExp("all"); setHasSal(false); setShowSaved(false);
+    setCountry(p.country || null); setCity(null);
+    setPage(1);
+  }
 
   const srcNames = useMemo(() => [...new Set(jobs.map((j) => j.source))].sort(), [jobs]);
 
@@ -431,6 +459,9 @@ export default function Dashboard() {
             <select value={jtype} onChange={(e) => { setJtype(e.target.value); setPage(1); }}>
               {JTYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
             </select>
+            <select value={exp} onChange={(e) => { setExp(e.target.value); setPage(1); }}>
+              {EXPS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+            </select>
             <select value={hasSal ? "yes" : "all"} onChange={(e) => { setHasSal(e.target.value === "yes"); setPage(1); }}>
               <option value="all">Salary: all jobs</option>
               <option value="yes">Salary listed only</option>
@@ -438,16 +469,17 @@ export default function Dashboard() {
             <select value={per} onChange={(e) => { setPer(Number(e.target.value)); setPage(1); }}>
               {PAGE_SIZES.map((n) => <option key={n} value={n}>{n} per page</option>)}
             </select>
-            {(src !== "all" || when !== "any" || jtype !== "all" || quick !== null || q) && (
+            {(src !== "all" || when !== "any" || jtype !== "all" || exp !== "all" || hasSal || quick !== null || q) && (
               <button
-                className="btn"
-                onClick={() => { setSrc("all"); setWhen("any"); setJtype("all"); setQuick(null); setQ(""); setPage(1); }}
+                className="btn clearbtn"
+                onClick={() => { setSrc("all"); setWhen("any"); setJtype("all"); setExp("all"); setHasSal(false); setQuick(null); setQ(""); setPage(1); }}
               >
-                Clear filters
+                ✕ Clear filters
               </button>
             )}
           </div>
-          <div className="chiprow">
+          <div className="fsection">Browse by role</div>
+          <div className="chiprow rolechips">
             {QUICK.map((c, i) => (
               <span
                 key={c.label}
@@ -455,9 +487,23 @@ export default function Dashboard() {
                 onClick={() => { setQuick(quick === i ? null : i); setPage(1); }}
               >
                 {c.label}
+                {quickCounts[i] > 0 && <span className="chip-n">{quickCounts[i]}</span>}
               </span>
             ))}
           </div>
+          {quickCounts.some((n) => n > 0) && (
+            <div className="trending">
+              🔥 Trending now:
+              {QUICK.map((c, i) => ({ label: c.label, i, n: quickCounts[i] }))
+                .sort((a, b) => b.n - a.n)
+                .slice(0, 4)
+                .map((r) => (
+                  <button key={r.label} onClick={() => { setQuick(quick === r.i ? null : r.i); setPage(1); }}>
+                    {r.label}
+                  </button>
+                ))}
+            </div>
+          )}
         </div>
 
         <div className="tabs">
@@ -643,6 +689,12 @@ export default function Dashboard() {
           </>
         )}
         <div className="footer">Data refreshes automatically every 15 minutes from Remotive, RemoteOK, We Work Remotely, Himalayas, Jobicy, Arbeitnow, The Muse and more.</div>
+        <JobBot
+          jobs={jobs}
+          countryNames={Object.keys(countryCounts)}
+          mySkills={mySkills}
+          onApply={botApply}
+        />
       </main>
     </div>
   );

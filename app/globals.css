@@ -161,7 +161,59 @@ input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px r
 .jd-match b { color: var(--accent); }
 .jd-match .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .jd-match .mchip { background: var(--accent); color: #fff; font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px; }
-.themebtn { padding: 8px 12px; }
+/* animated sun/moon theme icon */
+.themeicon { position: relative; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border2); background: var(--surface2); color: var(--text); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; transition: border-color .2s, box-shadow .2s; flex-shrink: 0; }
+.themeicon:hover { border-color: var(--accent); box-shadow: 0 0 12px rgba(59,130,246,.25); }
+.themeicon svg { position: absolute; transition: transform .5s cubic-bezier(.4,0,.2,1), opacity .35s; }
+.themeicon .ti-sun { color: #f5a623; }
+.themeicon .ti-moon { color: #8ab0ff; }
+html[data-theme="dark"] .themeicon .ti-sun { opacity: 0; transform: rotate(120deg) scale(.3); }
+html[data-theme="dark"] .themeicon .ti-moon { opacity: 1; transform: rotate(0) scale(1); }
+html[data-theme="light"] .themeicon .ti-sun { opacity: 1; transform: rotate(0) scale(1); }
+html[data-theme="light"] .themeicon .ti-moon { opacity: 0; transform: rotate(-120deg) scale(.3); }
+.themeicon.spin { animation: jq-theme-pop .55s cubic-bezier(.3,1.4,.5,1); }
+@keyframes jq-theme-pop { 0% { transform: scale(1) rotate(0); } 40% { transform: scale(1.18) rotate(180deg); } 100% { transform: scale(1) rotate(360deg); } }
+
+/* filter bar polish */
+.fsection { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--faint); font-weight: 600; margin: 14px 0 2px; }
+.rolechips .chip { display: inline-flex; align-items: center; gap: 7px; padding: 6px 13px; border-radius: 999px; transition: all .15s; }
+.rolechips .chip:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,.12); }
+.rolechips .chip.on { background: var(--grad); border-color: transparent; color: #fff; box-shadow: 0 3px 14px rgba(59,130,246,.35); }
+.chip-n { background: var(--track); border-radius: 99px; font-size: 10.5px; padding: 1px 7px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip.on .chip-n { background: rgba(255,255,255,.22); color: #fff; }
+.frow select { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); border-radius: 8px; padding: 9px 12px; font-size: 13px; cursor: pointer; transition: border-color .15s; }
+.frow select:hover { border-color: var(--accent); }
+.clearbtn { color: var(--red); border-color: rgba(248,113,113,.35); }
+.trending { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; font-size: 12.5px; color: var(--muted); }
+.trending button { background: none; border: none; color: var(--accent); font-size: 12.5px; cursor: pointer; padding: 0; font-weight: 600; }
+.trending button:hover { text-decoration: underline; }
+
+/* ---- QuickieBot ---- */
+.botfab { position: fixed; bottom: 22px; right: 22px; z-index: 90; width: 56px; height: 56px; border-radius: 50%; border: none; background: var(--grad); color: #fff; font-size: 22px; cursor: pointer; box-shadow: 0 8px 28px rgba(59,130,246,.45); transition: transform .2s, box-shadow .2s; }
+.botfab:hover { transform: scale(1.08); box-shadow: 0 10px 34px rgba(59,130,246,.6); }
+.botfab.open { background: var(--surface2); color: var(--text); border: 1px solid var(--border2); box-shadow: 0 6px 20px rgba(0,0,0,.3); }
+.botpanel { position: fixed; bottom: 90px; right: 22px; z-index: 90; width: 370px; max-width: calc(100vw - 28px); height: 520px; max-height: calc(100vh - 120px); background: var(--surface); border: 1px solid var(--border2); border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.4); animation: jq-bot-in .25s cubic-bezier(.2,1.2,.4,1); }
+@keyframes jq-bot-in { from { opacity: 0; transform: translateY(16px) scale(.96); } to { opacity: 1; transform: none; } }
+.bot-head { display: flex; align-items: center; gap: 8px; padding: 14px 16px; font-weight: 700; font-size: 14px; background: var(--grad); color: #fff; }
+.bot-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 8px #4ade80; animation: jq-pulse 1.8s infinite; }
+.bot-sub { font-weight: 400; font-size: 11.5px; opacity: .85; margin-left: auto; }
+.bot-body { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.bmsg { max-width: 88%; }
+.bmsg.user { align-self: flex-end; }
+.bmsg-text { border-radius: 12px; padding: 9px 13px; font-size: 13px; line-height: 1.5; }
+.bmsg.bot .bmsg-text { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-bottom-left-radius: 4px; }
+.bmsg.user .bmsg-text { background: var(--grad); color: #fff; border-bottom-right-radius: 4px; }
+.bmsg-jobs { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.bjob { display: flex; flex-direction: column; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 11px; font-size: 12px; transition: border-color .15s; }
+.bjob:hover { border-color: var(--accent); }
+.bjob b { color: var(--text); font-size: 12.5px; }
+.bjob span { color: var(--muted); margin-top: 2px; }
+.bot-sugg { display: flex; flex-wrap: wrap; gap: 8px; }
+.bot-sugg button { background: var(--grad-soft); border: 1px solid rgba(59,130,246,.35); color: var(--accent); border-radius: 999px; padding: 6px 12px; font-size: 12px; cursor: pointer; font-weight: 500; }
+.bot-sugg button:hover { filter: brightness(1.1); }
+.bot-input { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border); }
+.bot-input input { flex: 1; background: var(--surface2); border: 1px solid var(--border2); color: var(--text); border-radius: 10px; padding: 9px 12px; font-size: 13px; }
+.bot-input .btn { padding: 8px 14px; }
 .foryou-hint { background: var(--grad-soft); border: 1px solid rgba(59,130,246,.3); border-radius: var(--radius); padding: 14px 16px; font-size: 13px; color: var(--muted); margin-bottom: 14px; }
 
 /* ---- Two-pane job browser (list + detail, LinkedIn-style) ---- */
