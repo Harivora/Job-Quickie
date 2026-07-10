@@ -1,18 +1,19 @@
 "use client";
 import { useEffect, useRef, useState, useMemo } from "react";
 import Globe from "react-globe.gl";
+import { feature as topoFeature } from "topojson-client";
 import { matchLocation } from "@/lib/geo";
 
-// Real earth with country borders (Natural Earth GeoJSON), scroll zoom,
+// Real earth with country borders (Natural Earth data), scroll zoom,
 // click a country to outline it and fly in, click a city marker to go deeper.
+// Assets are versioned npm packages served via jsDelivr/unpkg with fallbacks.
 
-// All assets are bundled in /public/globe — no external CDN dependency.
-const GEOJSON_URLS = [
-  "/globe/countries.geojson",
-  "https://globe.gl/example/datasets/ne_110m_admin_0_countries.geojson",
+const TOPOJSON_URLS = [
+  "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json",
+  "https://unpkg.com/world-atlas@2.0.2/countries-110m.json",
 ];
-const EARTH_IMG = "/globe/earth-blue-marble.jpg";
-const BUMP_IMG = "/globe/earth-topology.png";
+const EARTH_IMG = "https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-blue-marble.jpg";
+const BUMP_IMG = "https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-topology.png";
 
 function featureName(f) {
   return f?.properties?.name || f?.properties?.NAME || f?.properties?.ADMIN || "";
@@ -64,16 +65,17 @@ export default function JobGlobe({
     return () => ro.disconnect();
   }, []);
 
-  // load country borders
+  // load country borders (TopoJSON → GeoJSON)
   useEffect(() => {
     let dead = false;
     (async () => {
-      for (const url of GEOJSON_URLS) {
+      for (const url of TOPOJSON_URLS) {
         try {
           const res = await fetch(url);
           if (!res.ok) continue;
-          const geo = await res.json();
+          const topo = await res.json();
           if (dead) return;
+          const geo = topoFeature(topo, topo.objects.countries);
           const feats = (geo.features || [])
             .filter((f) => featureName(f) !== "Antarctica")
             .map((f) => {

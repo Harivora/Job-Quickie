@@ -76,9 +76,9 @@ export default function Globe() {
           width={size.w}
           height={size.h}
           backgroundColor="rgba(0,0,0,0)"
-          backgroundImageUrl="/globe/night-sky.png"
-          globeImageUrl="/globe/earth-blue-marble.jpg"
-          bumpImageUrl="/globe/earth-topology.png"
+          backgroundImageUrl="https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/night-sky.png"
+          globeImageUrl="https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-blue-marble.jpg"
+          bumpImageUrl="https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-topology.png"
           atmosphereColor="#4f8cff"
           atmosphereAltitude={0.2}
           arcsData={arcs}
