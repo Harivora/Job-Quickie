@@ -5,6 +5,7 @@ import Loader from "@/components/Loader";
 import dynamic from "next/dynamic";
 import { matchLocation, CITIES } from "@/lib/geo";
 import Insights from "@/components/Insights";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const JobGlobe = dynamic(() => import("@/components/JobGlobe"), { ssr: false });
 
@@ -84,12 +85,35 @@ export default function Dashboard() {
   const [selOpen, setSelOpen] = useState(false);
   const [saved, setSaved] = useState({});
   const [showSaved, setShowSaved] = useState(false);
+  const [forYou, setForYou] = useState(false);
+  const [mySkills, setMySkills] = useState([]);
+  const [viewed, setViewed] = useState({});
+  const [copied, setCopied] = useState(false);
+  const [hasSal, setHasSal] = useState(false);
 
   const jkey = (j) => `${j.title}|${j.company}`.toLowerCase();
 
   useEffect(() => {
     try { setSaved(JSON.parse(localStorage.getItem("jq_saved") || "{}")); } catch {}
+    try { setViewed(JSON.parse(localStorage.getItem("jq_viewed") || "{}")); } catch {}
+    // profile skills power the "For you" tab + match badges
+    fetch("/api/profile").then((r) => (r.ok ? r.json() : null)).then((d) => {
+      if (d?.user?.skills) setMySkills(d.user.skills);
+    }).catch(() => {});
   }, []);
+
+  const matchSkills = (j) => mySkills.filter((s) => j.hay.includes(s.toLowerCase()));
+
+  function markViewed(j) {
+    setViewed((prev) => {
+      if (prev[jkey(j)]) return prev;
+      const next = { ...prev, [jkey(j)]: true };
+      const keys = Object.keys(next);
+      if (keys.length > 500) delete next[keys[0]];
+      try { localStorage.setItem("jq_viewed", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
 
   function toggleSave(j) {
     setSaved((prev) => {
@@ -201,6 +225,13 @@ export default function Dashboard() {
     const t = JTYPES.find((x) => x.id === jtype);
     if (t?.re) f = f.filter((j) => t.re.test(`${j.type} ${j.title} ${j.hay.slice(0, 300)}`));
     if (showSaved) f = f.filter((j) => saved[jkey(j)]);
+    if (hasSal) f = f.filter((j) => j.salary);
+    if (forYou && mySkills.length) {
+      f = f.filter((j) => matchSkills(j).length > 0);
+      return [...f].sort((a, b) =>
+        matchSkills(b).length - matchSkills(a).length || new Date(b.date) - new Date(a.date)
+      );
+    }
     return [...f].sort((a, b) =>
       sort === "title" ? a.title.localeCompare(b.title)
       : sort === "titleZ" ? b.title.localeCompare(a.title)
@@ -210,7 +241,8 @@ export default function Dashboard() {
       : sort === "old" ? new Date(a.date) - new Date(b.date)
       : new Date(b.date) - new Date(a.date)
     );
-  }, [base, tab, sort, src, when, jtype, showSaved, saved]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [base, tab, sort, src, when, jtype, showSaved, saved, hasSal, forYou, mySkills]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / per));
   const cur = Math.min(page, totalPages);
@@ -261,6 +293,7 @@ export default function Dashboard() {
           </div>
           <div className="top-right">
             {updated && <span className="updated">Updated {updated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
+            <ThemeToggle />
             <button className="btn primary" onClick={load} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</button>
             <button className="btn" onClick={() => router.push("/profile")}>Profile</button>
             <button className="btn" onClick={logout}>Sign out</button>
@@ -398,6 +431,10 @@ export default function Dashboard() {
             <select value={jtype} onChange={(e) => { setJtype(e.target.value); setPage(1); }}>
               {JTYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
             </select>
+            <select value={hasSal ? "yes" : "all"} onChange={(e) => { setHasSal(e.target.value === "yes"); setPage(1); }}>
+              <option value="all">Salary: all jobs</option>
+              <option value="yes">Salary listed only</option>
+            </select>
             <select value={per} onChange={(e) => { setPer(Number(e.target.value)); setPage(1); }}>
               {PAGE_SIZES.map((n) => <option key={n} value={n}>{n} per page</option>)}
             </select>
@@ -435,12 +472,26 @@ export default function Dashboard() {
             </button>
           ))}
           <button
+            className={"tab" + (forYou ? " active" : "")}
+            onClick={() => { setForYou(!forYou); setPage(1); }}
+            title={mySkills.length ? `Matching your skills: ${mySkills.join(", ")}` : "Add skills in your profile to unlock"}
+          >
+            ✨ For you
+          </button>
+          <button
             className={"tab saved-tab" + (showSaved ? " active" : "")}
             onClick={() => { setShowSaved(!showSaved); setPage(1); }}
           >
             ★ Saved<span className="n">{savedCount}</span>
           </button>
         </div>
+
+        {forYou && !mySkills.length && (
+          <div className="foryou-hint">
+            <b>✨ For you</b> ranks jobs against your skills — but your profile has none yet.{" "}
+            <a href="/profile">Add skills to your profile</a> and this tab becomes your personal shortlist.
+          </div>
+        )}
 
         <div className="listmeta">
           <span>
@@ -469,7 +520,7 @@ export default function Dashboard() {
                   <div
                     className={"job" + (sel && jkey(sel) === jkey(j) ? " active" : "")}
                     key={i}
-                    onClick={() => { setSel(j); setSelOpen(true); }}
+                    onClick={() => { setSel(j); setSelOpen(true); markViewed(j); }}
                   >
                     {j.logo ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -478,7 +529,14 @@ export default function Dashboard() {
                       <div className="avatar ph">{(j.company || "?")[0].toUpperCase()}</div>
                     )}
                     <div className="jmain">
-                      <span className="jtitle">{j.title}</span>
+                      <span className="jtitle">
+                        {j.title}
+                        {Date.now() - new Date(j.date).getTime() < 864e5 && <span className="newtag">NEW</span>}
+                        {mySkills.length > 0 && matchSkills(j).length > 0 && (
+                          <span className="matchtag">✦ {matchSkills(j).length} skill match</span>
+                        )}
+                        {viewed[jkey(j)] && <span className="viewedtag">· viewed</span>}
+                      </span>
                       <div className="jsub">
                         <span>{j.company}</span>
                         {j.location && <><span className="sep">·</span><span>{j.location.slice(0, 42)}</span></>}
@@ -528,7 +586,24 @@ export default function Dashboard() {
                       <button className="btn" onClick={() => toggleSave(sel)}>
                         {saved[jkey(sel)] ? "★ Saved" : "☆ Save"}
                       </button>
+                      <button
+                        className="btn"
+                        title="Copy job link"
+                        onClick={async () => {
+                          try { await navigator.clipboard.writeText(sel.url); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch {}
+                        }}
+                      >
+                        {copied ? "Copied ✓" : "Share"}
+                      </button>
                     </div>
+                    {mySkills.length > 0 && matchSkills(sel).length > 0 && (
+                      <div className="jd-match">
+                        This role matches <b>{matchSkills(sel).length} of your {mySkills.length} skills</b>
+                        <div className="chips">
+                          {matchSkills(sel).map((s) => <span key={s} className="mchip">{s}</span>)}
+                        </div>
+                      </div>
+                    )}
                     {sel.desc && (
                       <>
                         <div className="jd-sect">About this role</div>

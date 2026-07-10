@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Loader from "@/components/Loader";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const SUGGESTED = [
   "JavaScript", "TypeScript", "React", "Next.js", "Node.js", "Python",
@@ -92,6 +93,7 @@ export default function ProfilePage() {
             Job<span style={{ color: "#2f7bff" }}>Quickie</span>
           </div>
           <div className="top-right">
+            <ThemeToggle />
             <button className="btn" onClick={() => router.push("/dashboard")}>← Dashboard</button>
           </div>
         </div>
