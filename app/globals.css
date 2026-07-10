@@ -136,6 +136,26 @@ input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px r
 .autherr { background: rgba(214,69,69,.12); border: 1px solid rgba(214,69,69,.4); color: #ff9b9b; border-radius: 8px; padding: 8px 12px; font-size: 12.5px; }
 .authok { background: rgba(29,167,101,.12); border: 1px solid rgba(29,167,101,.4); color: #7be0b3; border-radius: 8px; padding: 8px 12px; font-size: 12.5px; }
 
+/* ---- Globe panel ---- */
+.globepanel { background: #0a101e; border: 1px solid #1c2740; border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; }
+.globepanel-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; }
+.globepanel-title { color: #e8ecf6; font-weight: 600; font-size: 14px; }
+.globepanel-sub { color: #7d8aa5; font-size: 12px; margin-top: 2px; }
+.globepanel-head .btn { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.15); color: #cdd6e6; }
+.globepanel-head .btn:hover { background: rgba(255,255,255,.12); }
+.globepanel-body { display: grid; grid-template-columns: 1.2fr 1fr; gap: 0; border-top: 1px solid #1c2740; }
+@media (max-width: 820px) { .globepanel-body { grid-template-columns: 1fr; } }
+.globepanel-canvas { height: 340px; }
+.globepanel-side { padding: 18px; border-left: 1px solid #1c2740; }
+@media (max-width: 820px) { .globepanel-side { border-left: none; border-top: 1px solid #1c2740; } }
+.globepanel-side .chip { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.16); color: #aeb9cd; }
+.globepanel-side .chip:hover { border-color: #6ea0ff; color: #6ea0ff; }
+.globepanel-side .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.geolabel { color: #7d8aa5; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; font-weight: 600; margin-top: 4px; }
+.geosel { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.geosel .btn { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.15); color: #cdd6e6; padding: 5px 12px; font-size: 12.5px; }
+.geotoggle { display: flex; align-items: center; gap: 8px; color: #aeb9cd; font-size: 12.5px; margin: 8px 0 14px; cursor: pointer; }
+
 /* ---- Admin table ---- */
 .table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
 .table th, .table td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13.5px; }

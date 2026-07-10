@@ -1,6 +1,10 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+import { matchLocation } from "@/lib/geo";
+
+const JobGlobe = dynamic(() => import("@/components/JobGlobe"), { ssr: false });
 
 const QUICK = [
   { label: "AI & Machine Learning", re: /\b(ai|a\.i\.|machine learning|ml engineer|artificial intelligence|deep learning|llm|nlp|computer vision|data scien)/i },
@@ -43,6 +47,10 @@ export default function Dashboard() {
   const [sort, setSort] = useState("date");
   const [page, setPage] = useState(1);
   const [updated, setUpdated] = useState(null);
+  const [country, setCountry] = useState(null);
+  const [city, setCity] = useState(null);
+  const [includeWorldwide, setIncludeWorldwide] = useState(true);
+  const [showGlobe, setShowGlobe] = useState(true);
 
   async function load() {
     setLoading(true);
@@ -51,7 +59,11 @@ export default function Dashboard() {
       const res = await fetch("/api/jobs");
       if (res.status === 401) { router.push("/"); return; }
       const data = await res.json();
-      setJobs(data.jobs || []);
+      const enriched = (data.jobs || []).map((j) => {
+        const geo = matchLocation(j.location, j.source);
+        return { ...j, _countries: geo.countries, _worldwide: geo.worldwide };
+      });
+      setJobs(enriched);
       setSources(data.sources || {});
       setUpdated(new Date());
     } catch {
@@ -72,13 +84,58 @@ export default function Dashboard() {
     router.push("/");
   }
 
-  const base = useMemo(() => {
+  // text/category filter (before geography)
+  const textFiltered = useMemo(() => {
     let f = jobs;
     if (quick !== null) f = f.filter((j) => QUICK[quick].re.test(j.hay + " " + j.title));
     const s = q.trim().toLowerCase();
     if (s) f = f.filter((j) => j.hay.includes(s));
     return f;
   }, [jobs, quick, q]);
+
+  // per-country counts drive the globe markers
+  const countryCounts = useMemo(() => {
+    const counts = {};
+    for (const j of textFiltered) {
+      for (const c of j._countries) counts[c] = (counts[c] || 0) + 1;
+    }
+    return counts;
+  }, [textFiltered]);
+
+  // geography filter
+  const base = useMemo(() => {
+    if (!country) return textFiltered;
+    let f = textFiltered.filter(
+      (j) =>
+        j._countries.includes(country) ||
+        (includeWorldwide && j._worldwide && j.mode === "remote")
+    );
+    if (city) {
+      const cl = city.toLowerCase();
+      f = f.filter(
+        (j) =>
+          (j.location || "").toLowerCase().includes(cl) ||
+          (includeWorldwide && j._worldwide && j.mode === "remote")
+      );
+    }
+    return f;
+  }, [textFiltered, country, city, includeWorldwide]);
+
+  // top cities within the selected country
+  const cities = useMemo(() => {
+    if (!country) return [];
+    const counts = {};
+    for (const j of textFiltered) {
+      if (!j._countries.includes(country)) continue;
+      const first = (j.location || "").split(",")[0].trim();
+      if (!first || first.length > 26) continue;
+      if (first.toLowerCase() === country.toLowerCase()) continue;
+      counts[first] = (counts[first] || 0) + 1;
+    }
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10);
+  }, [textFiltered, country]);
 
   const filtered = useMemo(() => {
     let f = tab === "all" ? base : base.filter((j) => j.mode === tab);
@@ -91,6 +148,12 @@ export default function Dashboard() {
 
   const slice = filtered.slice(0, page * PER);
   const count = (m) => base.filter((j) => j.mode === m).length;
+
+  function selectCountry(c) {
+    setCountry(c);
+    setCity(null);
+    setPage(1);
+  }
 
   return (
     <div>
@@ -114,6 +177,73 @@ export default function Dashboard() {
         </div>
 
         {error && <div className="banner">{error}</div>}
+
+        <div className="globepanel">
+          <div className="globepanel-head">
+            <div>
+              <div className="globepanel-title">Explore by location</div>
+              <div className="globepanel-sub">Drag to roam the globe · click a marker to filter by country</div>
+            </div>
+            <button className="btn" onClick={() => setShowGlobe(!showGlobe)}>
+              {showGlobe ? "Hide globe" : "Show globe"}
+            </button>
+          </div>
+          {showGlobe && (
+            <div className="globepanel-body">
+              <div className="globepanel-canvas">
+                <JobGlobe counts={countryCounts} selected={country} onSelect={selectCountry} />
+              </div>
+              <div className="globepanel-side">
+                {country ? (
+                  <>
+                    <div className="geosel">
+                      <span className="pill approved">{country}</span>
+                      <button className="btn" onClick={() => selectCountry(null)}>Clear</button>
+                    </div>
+                    <label className="geotoggle">
+                      <input
+                        type="checkbox"
+                        checked={includeWorldwide}
+                        onChange={(e) => { setIncludeWorldwide(e.target.checked); setPage(1); }}
+                      />
+                      Include worldwide-remote roles
+                    </label>
+                    {cities.length > 0 && (
+                      <>
+                        <div className="geolabel">Cities</div>
+                        <div className="chiprow" style={{ marginTop: 6 }}>
+                          {cities.map(([c, n]) => (
+                            <span
+                              key={c}
+                              className={"chip" + (city === c ? " on" : "")}
+                              onClick={() => { setCity(city === c ? null : c); setPage(1); }}
+                            >
+                              {c} · {n}
+                            </span>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="geolabel">Top countries</div>
+                    <div className="chiprow" style={{ marginTop: 6 }}>
+                      {Object.entries(countryCounts)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 10)
+                        .map(([c, n]) => (
+                          <span key={c} className="chip" onClick={() => selectCountry(c)}>
+                            {c} · {n}
+                          </span>
+                        ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="filterbar">
           <div className="frow">
@@ -156,7 +286,10 @@ export default function Dashboard() {
         </div>
 
         <div className="listmeta">
-          <span>{filtered.length ? `Showing ${slice.length} of ${filtered.length} positions` : ""}</span>
+          <span>
+            {filtered.length ? `Showing ${slice.length} of ${filtered.length} positions` : ""}
+            {country ? ` in ${city ? city + ", " : ""}${country}` : ""}
+          </span>
           <span className="srcbadges">
             {Object.entries(sources).map(([n, v]) => (
               <span key={n}>
@@ -170,7 +303,7 @@ export default function Dashboard() {
         {loading && !jobs.length ? (
           <div className="state"><div className="spinner" />Loading live listings…</div>
         ) : !filtered.length ? (
-          <div className="state"><h3>No matching positions</h3>Try a broader search term or clear the category filter.</div>
+          <div className="state"><h3>No matching positions</h3>Try a broader search, another country, or clear the filters.</div>
         ) : (
           <>
             <div className="joblist">
