@@ -6,15 +6,16 @@ import { matchLocation } from "@/lib/geo";
 // Real earth with country borders (Natural Earth GeoJSON), scroll zoom,
 // click a country to outline it and fly in, click a city marker to go deeper.
 
+// All assets are bundled in /public/globe — no external CDN dependency.
 const GEOJSON_URLS = [
+  "/globe/countries.geojson",
   "https://globe.gl/example/datasets/ne_110m_admin_0_countries.geojson",
-  "https://raw.githubusercontent.com/vasturiano/globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson",
 ];
-const EARTH_IMG = "https://unpkg.com/three-globe/example/img/earth-night.jpg";
-const BUMP_IMG = "https://unpkg.com/three-globe/example/img/earth-topology.png";
+const EARTH_IMG = "/globe/earth-blue-marble.jpg";
+const BUMP_IMG = "/globe/earth-topology.png";
 
 function featureName(f) {
-  return f?.properties?.NAME || f?.properties?.ADMIN || "";
+  return f?.properties?.name || f?.properties?.NAME || f?.properties?.ADMIN || "";
 }
 
 // centroid + rough span of a (Multi)Polygon feature
@@ -129,12 +130,12 @@ export default function JobGlobe({
   );
 
   const capColor = (f) => {
-    if (f.__jq === selected) return "rgba(59,130,246,0.35)";
-    if (f === hovered) return "rgba(59,130,246,0.22)";
+    if (f.__jq === selected) return "rgba(59,130,246,0.5)";
+    if (f === hovered) return "rgba(96,165,250,0.35)";
     const c = counts[f.__jq] || 0;
-    if (!c) return "rgba(255,255,255,0.015)";
+    if (!c) return "rgba(255,255,255,0.02)";
     const t = Math.sqrt(c / maxCount);
-    return `rgba(245,181,68,${0.06 + t * 0.3})`;
+    return `rgba(251,191,36,${0.1 + t * 0.35})`;
   };
 
   return (

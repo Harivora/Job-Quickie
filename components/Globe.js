@@ -1,126 +1,101 @@
 "use client";
-import { useEffect, useRef } from "react";
-import * as THREE from "three";
+import { useEffect, useMemo, useRef, useState } from "react";
+import GlobeGL from "react-globe.gl";
 
-// Rotating point-cloud earth with orbiting "job" markers.
+// Landing-page globe: realistic earth over a starfield with animated
+// "job found" arcs travelling between hiring hubs.
+
+const HUBS = [
+  { lat: 40.71, lng: -74.01 },   // New York
+  { lat: 37.77, lng: -122.42 },  // San Francisco
+  { lat: 51.51, lng: -0.13 },    // London
+  { lat: 52.52, lng: 13.41 },    // Berlin
+  { lat: 48.86, lng: 2.35 },     // Paris
+  { lat: 19.08, lng: 72.88 },    // Mumbai
+  { lat: 12.97, lng: 77.59 },    // Bangalore
+  { lat: 1.35, lng: 103.82 },    // Singapore
+  { lat: 35.68, lng: 139.69 },   // Tokyo
+  { lat: -33.87, lng: 151.21 },  // Sydney
+  { lat: -23.55, lng: -46.63 },  // São Paulo
+  { lat: 43.65, lng: -79.38 },   // Toronto
+  { lat: 25.2, lng: 55.27 },     // Dubai
+  { lat: 52.37, lng: 4.9 },      // Amsterdam
+];
+
 export default function Globe() {
-  const ref = useRef(null);
+  const wrapRef = useRef(null);
+  const globeRef = useRef(null);
+  const [size, setSize] = useState({ w: 0, h: 0 });
 
   useEffect(() => {
-    const el = ref.current;
+    const el = wrapRef.current;
     if (!el) return;
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(
-      45,
-      el.clientWidth / el.clientHeight,
-      0.1,
-      100
-    );
-    camera.position.z = 7;
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(el.clientWidth, el.clientHeight);
-    el.appendChild(renderer.domElement);
-
-    const group = new THREE.Group();
-    scene.add(group);
-
-    // Sphere of points (continent-like density via noise threshold)
-    const R = 2.4;
-    const positions = [];
-    for (let i = 0; i < 9000; i++) {
-      const phi = Math.acos(2 * Math.random() - 1);
-      const theta = Math.random() * Math.PI * 2;
-      // pseudo-noise to cluster points like landmasses
-      const n =
-        Math.sin(phi * 4 + 1.3) * Math.cos(theta * 3 + 0.7) +
-        Math.sin(phi * 7) * Math.cos(theta * 5) * 0.5;
-      if (n < 0.15) continue;
-      positions.push(
-        R * Math.sin(phi) * Math.cos(theta),
-        R * Math.cos(phi),
-        R * Math.sin(phi) * Math.sin(theta)
-      );
-    }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(positions, 3)
-    );
-    const pts = new THREE.Points(
-      geo,
-      new THREE.PointsMaterial({ color: 0x6ea0ff, size: 0.035, transparent: true, opacity: 0.9 })
-    );
-    group.add(pts);
-
-    // Faint inner sphere
-    const inner = new THREE.Mesh(
-      new THREE.SphereGeometry(R - 0.04, 48, 48),
-      new THREE.MeshBasicMaterial({ color: 0x0b1730, transparent: true, opacity: 0.85 })
-    );
-    group.add(inner);
-
-    // Atmosphere ring
-    const ring = new THREE.Mesh(
-      new THREE.RingGeometry(R + 0.5, R + 0.52, 128),
-      new THREE.MeshBasicMaterial({ color: 0x2a4a8a, side: THREE.DoubleSide, transparent: true, opacity: 0.5 })
-    );
-    ring.rotation.x = Math.PI / 2.4;
-    scene.add(ring);
-
-    // Orbiting job markers
-    const markers = [];
-    for (let i = 0; i < 14; i++) {
-      const m = new THREE.Mesh(
-        new THREE.SphereGeometry(0.045, 12, 12),
-        new THREE.MeshBasicMaterial({ color: i % 3 === 0 ? 0x2dd4a7 : 0xf5b544 })
-      );
-      m.userData = {
-        r: R + 0.35 + Math.random() * 0.5,
-        speed: 0.15 + Math.random() * 0.3,
-        offset: Math.random() * Math.PI * 2,
-        tilt: (Math.random() - 0.5) * 1.6,
-      };
-      scene.add(m);
-      markers.push(m);
-    }
-
-    let raf;
-    const clock = new THREE.Clock();
-    const animate = () => {
-      const t = clock.getElapsedTime();
-      group.rotation.y = t * 0.12;
-      ring.rotation.z = t * 0.05;
-      markers.forEach((m) => {
-        const { r, speed, offset, tilt } = m.userData;
-        const a = t * speed + offset;
-        m.position.set(
-          r * Math.cos(a),
-          r * Math.sin(a) * Math.sin(tilt),
-          r * Math.sin(a) * Math.cos(tilt)
-        );
-      });
-      renderer.render(scene, camera);
-      raf = requestAnimationFrame(animate);
-    };
-    animate();
-
-    const onResize = () => {
-      camera.aspect = el.clientWidth / el.clientHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(el.clientWidth, el.clientHeight);
-    };
-    window.addEventListener("resize", onResize);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("resize", onResize);
-      renderer.dispose();
-      el.removeChild(renderer.domElement);
-    };
+    const measure = () => setSize({ w: el.clientWidth, h: el.clientHeight });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
-  return <div ref={ref} style={{ width: "100%", height: "100%" }} />;
+  useEffect(() => {
+    const g = globeRef.current;
+    if (!g) return;
+    const controls = g.controls();
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.7;
+    controls.enableZoom = false;
+    g.pointOfView({ lat: 22, lng: 40, altitude: 1.9 });
+  }, [size.w]);
+
+  const arcs = useMemo(() => {
+    const out = [];
+    for (let i = 0; i < 22; i++) {
+      const a = HUBS[Math.floor(Math.random() * HUBS.length)];
+      let b = HUBS[Math.floor(Math.random() * HUBS.length)];
+      if (b === a) b = HUBS[(HUBS.indexOf(a) + 3) % HUBS.length];
+      out.push({
+        startLat: a.lat, startLng: a.lng,
+        endLat: b.lat, endLng: b.lng,
+        color: Math.random() > 0.5 ? "#fbbf24" : "#34d399",
+        time: 2500 + Math.random() * 3500,
+      });
+    }
+    return out;
+  }, []);
+
+  const rings = useMemo(
+    () => HUBS.map((h) => ({ lat: h.lat, lng: h.lng })),
+    []
+  );
+
+  return (
+    <div ref={wrapRef} style={{ width: "100%", height: "100%" }}>
+      {size.w > 0 && (
+        <GlobeGL
+          ref={globeRef}
+          width={size.w}
+          height={size.h}
+          backgroundColor="rgba(0,0,0,0)"
+          backgroundImageUrl="/globe/night-sky.png"
+          globeImageUrl="/globe/earth-blue-marble.jpg"
+          bumpImageUrl="/globe/earth-topology.png"
+          atmosphereColor="#4f8cff"
+          atmosphereAltitude={0.2}
+          arcsData={arcs}
+          arcColor="color"
+          arcStroke={0.45}
+          arcAltitudeAutoScale={0.4}
+          arcDashLength={0.45}
+          arcDashGap={0.7}
+          arcDashAnimateTime={(d) => d.time}
+          ringsData={rings}
+          ringColor={() => (t) => `rgba(79,140,255,${1 - t})`}
+          ringMaxRadius={2.2}
+          ringPropagationSpeed={1.4}
+          ringRepeatPeriod={2600}
+          enablePointerInteraction={false}
+        />
+      )}
+    </div>
+  );
 }
