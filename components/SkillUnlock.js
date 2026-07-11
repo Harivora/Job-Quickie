@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 // add next to unlock the most extra job matches?" Computed live against
 // every open listing, personalised to the user's current skill set.
 
-const CATALOG = [
+export const CATALOG = [
   "JavaScript", "TypeScript", "React", "Next.js", "Vue", "Angular", "Node.js",
   "Python", "Java", "Go", "Rust", "C++", "C#", ".NET", "PHP", "Ruby", "Swift",
   "Kotlin", "SQL", "PostgreSQL", "MongoDB", "GraphQL", "AWS", "Azure", "GCP",

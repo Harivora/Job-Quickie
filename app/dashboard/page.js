@@ -53,6 +53,13 @@ const JTYPES = [
   { id: "intern", label: "Internship", re: /intern(ship)?|trainee|working student/i },
 ];
 
+const LANGS = [
+  ["en", "English"], ["hi", "Hindi"], ["es", "Spanish"], ["fr", "French"],
+  ["de", "German"], ["pt", "Portuguese"], ["it", "Italian"], ["nl", "Dutch"],
+  ["ar", "Arabic"], ["zh-CN", "Chinese"], ["ja", "Japanese"], ["ko", "Korean"],
+  ["ru", "Russian"], ["tr", "Turkish"], ["pl", "Polish"], ["uk", "Ukrainian"],
+];
+
 const ago = (iso) => {
   const d = new Date(iso);
   if (isNaN(d)) return "";
@@ -90,6 +97,32 @@ export default function Dashboard() {
   const [mySkills, setMySkills] = useState([]);
   const [viewed, setViewed] = useState({});
   const [copied, setCopied] = useState(false);
+  const [trans, setTrans] = useState(null);      // { title, desc } or null = original
+  const [transBusy, setTransBusy] = useState(false);
+  const [transErr, setTransErr] = useState("");
+
+  async function translateSel(tl) {
+    if (!sel) return;
+    setTransErr("");
+    if (!tl) { setTrans(null); return; }
+    setTransBusy(true);
+    try {
+      const parts = [sel.title, sel.desc || ""].join("\n@@@\n");
+      const res = await fetch("/api/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: parts, tl }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "Translation failed");
+      const [t, ...rest] = d.translated.split(/\n?@@@\n?/);
+      setTrans({ title: t || sel.title, desc: rest.join(" ").trim() });
+    } catch (e) {
+      setTransErr(e.message);
+      setTrans(null);
+    }
+    setTransBusy(false);
+  }
   const [hasSal, setHasSal] = useState(false);
   const [exp, setExp] = useState("all");
   const [showTop, setShowTop] = useState(false);
@@ -510,7 +543,7 @@ export default function Dashboard() {
                   <div
                     className={"job" + (sel && jkey(sel) === jkey(j) ? " active" : "")}
                     key={i}
-                    onClick={() => { setSel(j); setSelOpen(true); markViewed(j); }}
+                    onClick={() => { setSel(j); setSelOpen(true); markViewed(j); setTrans(null); setTransErr(""); }}
                   >
                     {j.logo ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -566,7 +599,7 @@ export default function Dashboard() {
                         <div className="avatar ph">{(sel.company || "?")[0].toUpperCase()}</div>
                       )}
                       <div>
-                        <h2 className="jd-title">{sel.title}</h2>
+                        <h2 className="jd-title">{trans ? trans.title : sel.title}</h2>
                         <div className="jd-company">{sel.company}{sel.location ? ` · ${sel.location.slice(0, 60)}` : ""}</div>
                       </div>
                     </div>
@@ -600,10 +633,24 @@ export default function Dashboard() {
                         </div>
                       </div>
                     )}
-                    {sel.desc && (
+                    <div className="jd-translate">
+                      <span>🌐</span>
+                      <select
+                        defaultValue=""
+                        onChange={(e) => translateSel(e.target.value)}
+                        disabled={transBusy}
+                        aria-label="Translate this job"
+                      >
+                        <option value="">{transBusy ? "Translating…" : "Original language"}</option>
+                        {LANGS.map(([code, name]) => <option key={code} value={code}>Translate to {name}</option>)}
+                      </select>
+                      {trans && <button className="btn" style={{ padding: "5px 10px", fontSize: 12 }} onClick={() => setTrans(null)}>Show original</button>}
+                    </div>
+                    {transErr && <div className="autherr" style={{ marginBottom: 12 }}>{transErr}</div>}
+                    {(trans?.desc || sel.desc) && (
                       <>
                         <div className="jd-sect">About this role</div>
-                        <p className="jd-desc">{sel.desc}{sel.desc.length >= 490 ? "…" : ""}</p>
+                        <p className="jd-desc">{trans ? trans.desc : sel.desc}{!trans && sel.desc.length >= 490 ? "…" : ""}</p>
                       </>
                     )}
                     <div className="jd-sect">Details</div>

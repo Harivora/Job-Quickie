@@ -3,6 +3,40 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Loader from "@/components/Loader";
 import ThemeToggle from "@/components/ThemeToggle";
+import { CATALOG } from "@/components/SkillUnlock";
+
+const PDFJS = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js";
+const PDFJS_WORKER = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+
+function loadPdfJs() {
+  return new Promise((resolve, reject) => {
+    if (window.pdfjsLib) return resolve(window.pdfjsLib);
+    const s = document.createElement("script");
+    s.src = PDFJS;
+    s.onload = () => {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+      resolve(window.pdfjsLib);
+    };
+    s.onerror = () => reject(new Error("Could not load the PDF reader."));
+    document.head.appendChild(s);
+  });
+}
+
+async function extractText(file) {
+  if (file.type === "text/plain" || /\.txt$/i.test(file.name)) return file.text();
+  if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
+    const pdfjs = await loadPdfJs();
+    const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+    let text = "";
+    for (let p = 1; p <= Math.min(doc.numPages, 10); p++) {
+      const page = await doc.getPage(p);
+      const content = await page.getTextContent();
+      text += content.items.map((i) => i.str).join(" ") + "\n";
+    }
+    return text;
+  }
+  throw new Error("Please upload a PDF or plain-text resume.");
+}
 
 const SUGGESTED = [
   "JavaScript", "TypeScript", "React", "Next.js", "Node.js", "Python",
@@ -22,6 +56,57 @@ export default function ProfilePage() {
   const [confPw, setConfPw] = useState("");
   const [msg, setMsg] = useState(null); // {ok, text}
   const [busy, setBusy] = useState(false);
+  const [parsing, setParsing] = useState(false);
+  const [needInfo, setNeedInfo] = useState(false); // mandatory completion popup
+  const [popupSkill, setPopupSkill] = useState("");
+
+  async function onResume(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setParsing(true);
+    setMsg(null);
+    try {
+      const text = await extractText(file);
+      const lower = text.toLowerCase();
+      // pull skills the resume mentions
+      const found = CATALOG.filter((s) => {
+        const sl = s.toLowerCase();
+        return lower.includes(sl) && !skills.some((x) => x.toLowerCase() === sl);
+      });
+      const nextSkills = [...skills, ...found];
+      setSkills(nextSkills);
+      // guess a name from the first meaningful line if the field is empty
+      let nextName = name;
+      if (!nextName.trim()) {
+        const line = text.split("\n").map((l) => l.trim()).find((l) => l.length > 2 && l.length < 50 && /^[A-Za-z][A-Za-z .'-]+$/.test(l));
+        if (line) { nextName = line; setName(line); }
+      }
+      // save what we extracted immediately
+      await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: nextName || undefined, skills: nextSkills }),
+      });
+      setMsg({ ok: true, text: `Resume imported — found ${found.length} skill${found.length === 1 ? "" : "s"}${found.length ? `: ${found.slice(0, 6).join(", ")}${found.length > 6 ? "…" : ""}` : ""}.` });
+      // anything mandatory still missing? force the popup
+      if (!(nextName || "").trim() || nextSkills.length < 3) setNeedInfo(true);
+    } catch (err) {
+      setMsg({ ok: false, text: err.message || "Could not read that file." });
+    }
+    setParsing(false);
+  }
+
+  async function completeMandatory() {
+    if (!name.trim() || skills.length < 3) return;
+    await fetch("/api/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, skills }),
+    });
+    setNeedInfo(false);
+    setMsg({ ok: true, text: "Profile completed — you're all set." });
+  }
 
   useEffect(() => {
     (async () => {
@@ -111,6 +196,20 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        <div className="panel resume-panel">
+          <div>
+            <h2 className="panel-title" style={{ marginBottom: 2 }}>Import from resume</h2>
+            <p className="panel-hint" style={{ margin: 0 }}>
+              Upload your resume (PDF or TXT) and we&apos;ll fill your profile automatically —
+              skills are detected and your name is picked up if missing. Parsed in your browser; the file never leaves your device.
+            </p>
+          </div>
+          <label className={"btn primary" + (parsing ? " disabled" : "")} style={{ cursor: "pointer", whiteSpace: "nowrap" }}>
+            {parsing ? "Reading…" : "⬆ Upload resume"}
+            <input type="file" accept=".pdf,.txt,application/pdf,text/plain" onChange={onResume} disabled={parsing} style={{ display: "none" }} />
+          </label>
+        </div>
+
         <form onSubmit={saveAll}>
           <div className="panel">
             <h2 className="panel-title">Account</h2>
@@ -172,6 +271,63 @@ export default function ProfilePage() {
           <button className="btn primary" disabled={busy}>{busy ? "Saving…" : "Save profile"}</button>
         </form>
       </div>
+
+      {needInfo && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h2 className="panel-title">Almost there — a couple of required details</h2>
+            <p className="panel-hint">Your resume didn&apos;t cover everything. These are needed so JobQuickie can match jobs to you.</p>
+            {!name.trim() && (
+              <label className="field">
+                <span>Full name *</span>
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" autoFocus />
+              </label>
+            )}
+            {skills.length < 3 && (
+              <>
+                <label className="field" style={{ marginBottom: 6 }}>
+                  <span>Skills * — at least 3 ({skills.length}/3 so far)</span>
+                  <input
+                    value={popupSkill}
+                    onChange={(e) => setPopupSkill(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const v = popupSkill.trim();
+                        if (v && !skills.some((x) => x.toLowerCase() === v.toLowerCase())) setSkills([...skills, v]);
+                        setPopupSkill("");
+                      }
+                    }}
+                    placeholder="Type a skill and press Enter"
+                  />
+                </label>
+                <div className="suggested" style={{ marginBottom: 10 }}>
+                  {SUGGESTED.filter((s) => !skills.some((x) => x.toLowerCase() === s.toLowerCase())).slice(0, 8).map((s) => (
+                    <button type="button" key={s} className="chip" onClick={() => setSkills([...skills, s])}>+ {s}</button>
+                  ))}
+                </div>
+                {skills.length > 0 && (
+                  <div className="chiprow" style={{ marginTop: 0, marginBottom: 12 }}>
+                    {skills.map((s) => (
+                      <span key={s} className="chip on" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        {s}
+                        <button type="button" onClick={() => setSkills(skills.filter((x) => x !== s))} style={{ background: "none", border: "none", color: "rgba(255,255,255,.85)", cursor: "pointer", padding: 0 }}>×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+            <button
+              className="btn primary block"
+              disabled={!name.trim() || skills.length < 3}
+              onClick={completeMandatory}
+            >
+              {!name.trim() || skills.length < 3 ? "Fill the required fields to continue" : "Complete my profile"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
