@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 
-const Globe = dynamic(() => import("@/components/Globe"), { ssr: false });
+const LogoSphere = dynamic(() => import("@/components/LogoSphere"), { ssr: false });
 
 export default function Landing() {
   const router = useRouter();
@@ -90,8 +90,8 @@ export default function Landing() {
           </div>
         </div>
         <div className="globe-wrap">
-          <Globe />
-          <div className="globe-tag">Scanning the globe for your next role…</div>
+          <LogoSphere />
+          <div className="globe-tag">One profile · jobs from the world&apos;s top companies</div>
         </div>
       </div>
     </div>

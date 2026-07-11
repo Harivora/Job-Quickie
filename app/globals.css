@@ -371,6 +371,26 @@ html[data-theme="dark"] .botfab { background: var(--surface2); }
 .pw-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
 @media (max-width: 700px) { .pw-grid { grid-template-columns: 1fr; } }
 
+/* ---- Logo sphere (landing) ---- */
+.ls-scene { --ls-r: 215px; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; perspective: 1100px; }
+.ls-sphere { position: relative; width: 0; height: 0; transform-style: preserve-3d; animation: ls-spin 42s linear infinite; }
+@keyframes ls-spin { from { transform: rotateX(-12deg) rotateY(0deg); } to { transform: rotateX(-12deg) rotateY(360deg); } }
+.ls-slot { position: absolute; top: 0; left: 0; transform-style: preserve-3d; }
+.ls-tile {
+  width: 78px; height: 78px; margin: -39px 0 0 -39px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  border-radius: 16px;
+  background: linear-gradient(150deg, rgba(255,255,255,.09), rgba(255,255,255,.02));
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 6px 22px rgba(0,0,0,.35), inset 0 0 24px color-mix(in srgb, var(--brand) 16%, transparent);
+  backdrop-filter: blur(2px);
+  backface-visibility: hidden;
+}
+.ls-tile img { display: block; }
+.ls-mono { font-size: 26px; font-weight: 800; }
+.ls-name { font-size: 8.5px; letter-spacing: .04em; color: rgba(255,255,255,.75); font-weight: 600; text-transform: uppercase; }
+@media (max-width: 900px) { .ls-scene { --ls-r: 150px; } .ls-tile { width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 12px; } .ls-tile img { width: 22px; height: 22px; } .ls-name { display: none; } }
+
 /* ---- Landing / auth ---- */
 .landing { min-height: 100vh; background: #060a14; color: #e8ecf6; display: flex; flex-direction: column; }
 .landing-nav { display: flex; justify-content: space-between; align-items: center; padding: 20px 32px; }
