@@ -27,7 +27,9 @@ export default function Landing() {
     if (!res.ok) { setErr(data.error || "Something went wrong."); return; }
     if (data.status === "pending") {
       if (mode === "signup") {
-        setOk("Account created. An administrator must approve your access — check back soon.");
+        setOk(body.accountType === "employer"
+          ? "Account created. Employer accounts are reviewed by an administrator — check back soon."
+          : "Account created. An administrator must approve your access — check back soon.");
       } else {
         router.push("/pending");
       }
@@ -63,7 +65,13 @@ export default function Landing() {
             </div>
             <form onSubmit={submit}>
               {mode === "signup" && (
-                <input name="name" type="text" placeholder="Full name" required minLength={2} />
+                <>
+                  <input name="name" type="text" placeholder="Full name" required minLength={2} />
+                  <select name="accountType" defaultValue="seeker" aria-label="Account type">
+                    <option value="seeker">I&apos;m looking for a job</option>
+                    <option value="employer">I&apos;m an employer / recruiter</option>
+                  </select>
+                </>
               )}
               <input name="email" type="email" placeholder="Email address" required />
               <input name="password" type="password" placeholder="Password" required minLength={6} />

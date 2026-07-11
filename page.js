@@ -9,27 +9,6 @@ export default function Admin() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [autoApprove, setAutoApprove] = useState(null); // null until loaded
-  const [savingSetting, setSavingSetting] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/admin/settings").then((r) => (r.ok ? r.json() : null)).then((d) => {
-      if (d?.settings) setAutoApprove(!!d.settings.autoApproveSeekers);
-    }).catch(() => {});
-  }, []);
-
-  async function toggleAutoApprove() {
-    const next = !autoApprove;
-    setSavingSetting(true);
-    const res = await fetch("/api/admin/settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ autoApproveSeekers: next }),
-    });
-    if (res.ok) setAutoApprove(next);
-    else setError("Could not save the setting.");
-    setSavingSetting(false);
-  }
 
   async function load() {
     setLoading(true);
@@ -61,7 +40,7 @@ export default function Admin() {
       <td>{u.name}</td>
       <td>{u.email}</td>
       <td><span className={"pill " + u.status}>{u.status}</span></td>
-      <td>{u.accountType === "employer" ? "Employer" : u.role === "admin" ? "Admin" : "Job seeker"}</td>
+      <td>{u.role}</td>
       <td>{new Date(u.createdAt).toLocaleDateString()}</td>
       <td>
         <div className="actions">
@@ -84,25 +63,6 @@ export default function Admin() {
         <h1 className="pagetitle" style={{ paddingTop: 20 }}>Member management</h1>
         <p className="pagesub">Approve access requests and manage existing members.</p>
         {error && <div className="banner">{error}</div>}
-
-        <div className="panel setting-panel">
-          <div>
-            <div className="panel-title" style={{ marginBottom: 2 }}>Auto-approve job seekers</div>
-            <div className="panel-hint" style={{ margin: 0 }}>
-              When on, new registrations that choose “I&apos;m looking for a job” are approved instantly.
-              Employer / recruiter accounts always wait for your manual review.
-            </div>
-          </div>
-          <button
-            className={"switch-toggle" + (autoApprove ? " on" : "")}
-            onClick={toggleAutoApprove}
-            disabled={autoApprove === null || savingSetting}
-            aria-label="Toggle auto-approval of job seekers"
-          >
-            <span className="knob" />
-          </button>
-        </div>
-
         <h2 className="section-title">Pending approval ({pending.length})</h2>
         {loading ? (
           <div className="state"><Loader label="Loading requests…" size={56} /></div>
@@ -110,7 +70,7 @@ export default function Admin() {
           <div className="state">No pending access requests.</div>
         ) : (
           <table className="table">
-            <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Type</th><th>Requested</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Role</th><th>Requested</th><th>Actions</th></tr></thead>
             <tbody>{pending.map((u) => <Row key={u.id} u={u} />)}</tbody>
           </table>
         )}
@@ -118,7 +78,7 @@ export default function Admin() {
         <h2 className="section-title">All members ({others.length})</h2>
         {!loading && others.length > 0 && (
           <table className="table">
-            <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Type</th><th>Joined</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Role</th><th>Joined</th><th>Actions</th></tr></thead>
             <tbody>{others.map((u) => <Row key={u.id} u={u} />)}</tbody>
           </table>
         )}
