@@ -101,11 +101,18 @@ export default function JobBot({ jobs, countryNames, mySkills, onApply }) {
   return (
     <>
       <button className={"botfab" + (open ? " open" : "")} onClick={() => setOpen(!open)} aria-label="Job assistant">
-        {open ? "✕" : "✨"}
+        {open ? (
+          "✕"
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src="/logo.svg" alt="QuickieBot" className="botfab-logo" />
+        )}
       </button>
       {open && (
         <div className="botpanel">
           <div className="bot-head">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.svg" alt="" className="bot-head-logo" />
             <span className="bot-dot" /> QuickieBot
             <span className="bot-sub">your job-search copilot</span>
           </div>

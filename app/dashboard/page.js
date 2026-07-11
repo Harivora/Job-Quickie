@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Loader from "@/components/Loader";
 import dynamic from "next/dynamic";
@@ -98,6 +98,36 @@ export default function Dashboard() {
   const [copied, setCopied] = useState(false);
   const [hasSal, setHasSal] = useState(false);
   const [exp, setExp] = useState("all");
+  const [showTop, setShowTop] = useState(false);
+  const searchRef = useRef(null);
+
+  // "/" focuses search (like GitHub/LinkedIn); track scroll for back-to-top
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "/" && !/input|textarea|select/i.test(document.activeElement?.tagName || "")) {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    const onScroll = () => setShowTop(window.scrollY > 700);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("scroll", onScroll); };
+  }, []);
+
+  function exportSaved() {
+    const rows = jobs.filter((j) => saved[jkey(j)]);
+    if (!rows.length) return;
+    const esc = (s) => `"${String(s || "").replace(/"/g, '""')}"`;
+    const csv = ["Title,Company,Location,Mode,Type,Salary,Source,Posted,Link"]
+      .concat(rows.map((j) => [j.title, j.company, j.location, j.mode, j.type, j.salary, j.source, j.date, j.url].map(esc).join(",")))
+      .join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    a.download = "jobquickie-saved-jobs.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
 
   const jkey = (j) => `${j.title}|${j.company}`.toLowerCase();
 
@@ -331,10 +361,16 @@ export default function Dashboard() {
 
       <main className="wrap" style={{ paddingBottom: 40 }}>
         <div className="statrow">
-          <div className="statcard"><div className="lbl">Open positions</div><div className="val">{base.length.toLocaleString()}</div></div>
-          <div className="statcard"><div className="lbl">Remote</div><div className="val">{count("remote").toLocaleString()}</div></div>
-          <div className="statcard"><div className="lbl">Hybrid</div><div className="val">{count("hybrid").toLocaleString()}</div></div>
-          <div className="statcard"><div className="lbl">On-site</div><div className="val">{count("onsite").toLocaleString()}</div></div>
+          {[["all", "Open positions", base.length], ["remote", "Remote", count("remote")], ["hybrid", "Hybrid", count("hybrid")], ["onsite", "On-site", count("onsite")]].map(([id, lbl, n]) => (
+            <div
+              key={id}
+              className={"statcard clickable" + (tab === id ? " active" : "")}
+              onClick={() => { setTab(id); setPage(1); }}
+              title={`Show ${lbl.toLowerCase()}`}
+            >
+              <div className="lbl">{lbl}</div><div className="val">{n.toLocaleString()}</div>
+            </div>
+          ))}
         </div>
 
         {error && <div className="banner">{error}</div>}
@@ -433,8 +469,9 @@ export default function Dashboard() {
         <div className="filterbar">
           <div className="frow">
             <input
+              ref={searchRef}
               type="search"
-              placeholder="Search title, company, skill or location — e.g. AI engineer, nurse, PhD, Berlin"
+              placeholder="Search title, company, skill or location — press / to focus"
               value={q}
               onChange={(e) => { setQ(e.target.value); setPage(1); }}
             />
@@ -544,6 +581,9 @@ export default function Dashboard() {
             {filtered.length ? `Showing ${(cur - 1) * per + 1}–${Math.min(cur * per, filtered.length)} of ${filtered.length.toLocaleString()} positions` : ""}
             {country ? ` in ${city ? (cityPoints.find((c) => c.name === city)?.label || city) + ", " : ""}${country}` : ""}
           </span>
+          {showSaved && savedCount > 0 && (
+            <button className="btn" onClick={exportSaved}>⬇ Export saved ({savedCount}) as CSV</button>
+          )}
           <span className="srcbadges">
             {Object.entries(sources).map(([n, v]) => (
               <span key={n}>
@@ -584,7 +624,13 @@ export default function Dashboard() {
                         {viewed[jkey(j)] && <span className="viewedtag">· viewed</span>}
                       </span>
                       <div className="jsub">
-                        <span>{j.company}</span>
+                        <span
+                          className="jcompany"
+                          title={`See all jobs at ${j.company}`}
+                          onClick={(e) => { e.stopPropagation(); setQ(j.company); setPage(1); }}
+                        >
+                          {j.company}
+                        </span>
                         {j.location && <><span className="sep">·</span><span>{j.location.slice(0, 42)}</span></>}
                         {j.salary && <><span className="sep">·</span><span className="jsalary">{j.salary.slice(0, 30)}</span></>}
                       </div>
@@ -695,6 +741,9 @@ export default function Dashboard() {
           mySkills={mySkills}
           onApply={botApply}
         />
+        {showTop && (
+          <button className="toplink" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} title="Back to top">↑</button>
+        )}
       </main>
     </div>
   );
