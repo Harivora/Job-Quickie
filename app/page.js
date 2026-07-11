@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 
-const LogoSphere = dynamic(() => import("@/components/LogoSphere"), { ssr: false });
+const KineticGrid = dynamic(() => import("@/components/KineticGrid"), { ssr: false });
 
 export default function Landing() {
   const router = useRouter();
@@ -89,8 +89,8 @@ export default function Landing() {
             </div>
           </div>
         </div>
-        <div className="globe-wrap">
-          <LogoSphere />
+        <div className="globe-wrap kg-wrap">
+          <KineticGrid />
           <div className="globe-tag">One profile · jobs from the world&apos;s top companies</div>
         </div>
       </div>

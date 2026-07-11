@@ -371,6 +371,31 @@ html[data-theme="dark"] .botfab { background: var(--surface2); }
 .pw-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
 @media (max-width: 700px) { .pw-grid { grid-template-columns: 1fr; } }
 
+/* ---- Kinetic spatial grid (landing) ---- */
+.kg-wrap { overflow: visible !important; }
+.kg-field {
+  position: relative; width: 100%; height: 100%;
+  display: grid; grid-template-columns: repeat(5, 1fr); align-content: center;
+  gap: 18px 14px; padding: 8px 6px;
+  -webkit-mask-image: radial-gradient(ellipse 95% 92% at 50% 50%, #000 62%, transparent 100%);
+  mask-image: radial-gradient(ellipse 95% 92% at 50% 50%, #000 62%, transparent 100%);
+}
+.kg-tile {
+  width: 64px; height: 64px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  background: #fff; border-radius: 15px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.35);
+  will-change: transform, opacity, filter;
+  transition: box-shadow .25s;
+}
+.kg-tile img { width: 30px; height: 30px; object-fit: contain; }
+.kg-mono { font-size: 24px; font-weight: 800; }
+@media (max-width: 900px) {
+  .kg-tile { width: 48px; height: 48px; border-radius: 12px; }
+  .kg-tile img { width: 22px; height: 22px; }
+  .kg-field { gap: 12px 10px; }
+}
+
 /* ---- Logo sphere (landing) ---- */
 .ls-scene { --ls-r: 215px; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; perspective: 1100px; }
 .ls-sphere { position: relative; width: 0; height: 0; transform-style: preserve-3d; animation: ls-spin 42s linear infinite; }
@@ -392,7 +417,30 @@ html[data-theme="dark"] .botfab { background: var(--surface2); }
 @media (max-width: 900px) { .ls-scene { --ls-r: 150px; } .ls-tile { width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 12px; } .ls-tile img { width: 22px; height: 22px; } .ls-name { display: none; } }
 
 /* ---- Landing / auth ---- */
-.landing { min-height: 100vh; background: #060a14; color: #e8ecf6; display: flex; flex-direction: column; }
+.landing {
+  min-height: 100vh; color: #e8ecf6; display: flex; flex-direction: column;
+  position: relative; overflow: hidden; background: #04060c;
+  /* faint spatial grid lines */
+  background-image:
+    linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px);
+  background-size: 72px 72px;
+}
+/* aurora glow like the reference — animated, sits behind everything */
+.landing::before {
+  content: ""; position: absolute; inset: -20%; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(38% 30% at 22% 78%, rgba(34,170,200,.42), transparent 70%),
+    radial-gradient(42% 34% at 44% 62%, rgba(48,60,220,.4), transparent 70%),
+    radial-gradient(30% 26% at 62% 46%, rgba(90,40,220,.28), transparent 70%);
+  filter: blur(46px);
+  animation: jq-aurora 16s ease-in-out infinite alternate;
+}
+@keyframes jq-aurora {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(4%, -5%) scale(1.12) rotate(3deg); }
+}
+.landing > * { position: relative; z-index: 1; }
 .landing-nav { display: flex; justify-content: space-between; align-items: center; padding: 20px 32px; }
 .landing-nav .brand { color: #fff; }
 .landing-nav .brand-mark { background: var(--accent); color: #fff; }
