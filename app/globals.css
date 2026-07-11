@@ -447,6 +447,25 @@ html[data-theme="dark"] .botfab { background: var(--surface2); }
 .jd-translate { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
 .jd-translate select { font-size: 12.5px; padding: 6px 10px; }
 
+/* ---- Autopilot ---- */
+.ap-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.ap-progress { color: var(--muted); font-size: 13px; }
+.ap-progress b { color: var(--accent); }
+.ap-nav { display: flex; align-items: center; gap: 10px; }
+.ap-count { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.ap-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .ap-grid { grid-template-columns: 1fr; } }
+.ap-jobhead { display: flex; gap: 14px; align-items: flex-start; }
+.ap-jobhead .avatar { width: 48px; height: 48px; }
+.ap-fields { display: flex; flex-direction: column; gap: 7px; }
+.ap-field { display: grid; grid-template-columns: 92px 1fr 22px; align-items: center; gap: 10px; text-align: left; background: var(--surface2); border: 1px solid var(--border2); border-radius: 9px; padding: 8px 12px; cursor: pointer; font-size: 12.5px; transition: border-color .12s; }
+.ap-field:hover { border-color: var(--accent); }
+.ap-field span { color: var(--muted); }
+.ap-field b { color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ap-field em { font-style: normal; }
+.linkbtn { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 12px; padding: 0; }
+.linkbtn:hover { text-decoration: underline; }
+
 /* ---- Admin settings toggle ---- */
 .setting-panel { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin-bottom: 18px; }
 .switch-toggle { position: relative; width: 46px; height: 26px; border-radius: 999px; border: 1px solid var(--border2); background: var(--surface2); cursor: pointer; transition: background .2s, border-color .2s; flex-shrink: 0; }

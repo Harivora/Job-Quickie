@@ -11,6 +11,8 @@ export default function Admin() {
   const [error, setError] = useState("");
   const [autoApprove, setAutoApprove] = useState(null); // null until loaded
   const [savingSetting, setSavingSetting] = useState(false);
+  const [viewer, setViewer] = useState(null); // { u, kind }
+  const [fileMissing, setFileMissing] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/settings").then((r) => (r.ok ? r.json() : null)).then((d) => {
@@ -70,8 +72,8 @@ export default function Admin() {
                   face {(u.onboarding.faceMatch * 100).toFixed(0)}%
                 </span>
               : <span className="pill pending">manual check</span>}
-            <a href={`/api/admin/file?uid=${u.id}&kind=video`} target="_blank" rel="noreferrer">video</a>
-            <a href={`/api/admin/file?uid=${u.id}&kind=id`} target="_blank" rel="noreferrer">ID</a>
+            <button className="linkbtn" onClick={() => { setFileMissing(false); setViewer({ u, kind: "video" }); }}>▶ video</button>
+            <button className="linkbtn" onClick={() => { setFileMissing(false); setViewer({ u, kind: "id" }); }}>🪪 ID</button>
           </span>
         ) : u.onboarding?.interviewAt ? (
           <span className="pill pending">interview only</span>
@@ -140,6 +142,55 @@ export default function Admin() {
           </table>
         )}
       </main>
+
+      {viewer && (
+        <div className="modal-overlay" onClick={() => setViewer(null)}>
+          <div className="modal" style={{ width: 640 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div>
+                <div className="panel-title" style={{ marginBottom: 2 }}>
+                  {viewer.kind === "video" ? "Joining interview" : "Identity document"} — {viewer.u.name}
+                </div>
+                <div className="panel-hint" style={{ margin: 0 }}>
+                  {viewer.u.email}
+                  {viewer.u.onboarding?.faceMatch != null && ` · automatic face match: ${(viewer.u.onboarding.faceMatch * 100).toFixed(0)}%`}
+                  {viewer.u.onboarding?.videoRes && viewer.kind === "video" && ` · recorded at ${viewer.u.onboarding.videoRes}`}
+                </div>
+              </div>
+              <button className="btn" onClick={() => setViewer(null)}>✕ Close</button>
+            </div>
+            {fileMissing ? (
+              <div className="autherr">
+                This file no longer exists on the server — storage was reset by a redeploy.
+                Ask the member to redo verification, or add a persistent disk on your host so uploads survive deploys.
+              </div>
+            ) : viewer.kind === "video" ? (
+              <video
+                controls
+                autoPlay
+                playsInline
+                src={`/api/admin/file?uid=${viewer.u.id}&kind=video`}
+                onError={() => setFileMissing(true)}
+                style={{ width: "100%", borderRadius: 10, background: "#000", maxHeight: 380 }}
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={`/api/admin/file?uid=${viewer.u.id}&kind=id`}
+                alt="Identity document"
+                onError={() => setFileMissing(true)}
+                style={{ width: "100%", borderRadius: 10, maxHeight: 420, objectFit: "contain" }}
+              />
+            )}
+            {viewer.kind === "video" && !fileMissing && (
+              <div className="panel-hint" style={{ marginTop: 10 }}>
+                Expected statement: “I am joining JobQuickie. I follow the terms and conditions… my data will be used to train the AI…”
+                {" "}Compare the speaker with the ID photo before approving.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
