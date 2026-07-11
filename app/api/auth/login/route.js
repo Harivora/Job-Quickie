@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyUser } from "@/lib/db";
+import { verifyUser, onboardingComplete } from "@/lib/db";
 import { createSession } from "@/lib/auth";
 
 export async function POST(req) {
@@ -13,7 +13,7 @@ export async function POST(req) {
       return NextResponse.json({ error: "Your access request was declined." }, { status: 403 });
     }
     await createSession(user);
-    return NextResponse.json({ status: user.status, role: user.role });
+    return NextResponse.json({ status: user.status, role: user.role, onboarded: onboardingComplete(user) });
   } catch {
     return NextResponse.json({ error: "Login failed." }, { status: 400 });
   }

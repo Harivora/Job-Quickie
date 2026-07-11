@@ -42,7 +42,17 @@ export async function PUT(req) {
     if (body.currentPassword || body.newPassword) {
       changePassword(session.sub, body.currentPassword || "", body.newPassword || "");
     }
-    const user = updateProfile(session.sub, { name: body.name, skills: body.skills });
+    const user = updateProfile(session.sub, {
+      name: body.name,
+      skills: body.skills,
+      headline: body.headline,
+      phone: body.phone,
+      location: body.location,
+      website: body.website,
+      github: body.github,
+      linkedin: body.linkedin,
+      summary: body.summary,
+    });
     return NextResponse.json({ user: { ...user, skills: user.skills || [] } });
   } catch (e) {
     return NextResponse.json({ error: e.message || "Update failed" }, { status: 400 });

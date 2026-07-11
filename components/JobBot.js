@@ -43,7 +43,33 @@ export default function JobBot({ jobs, countryNames, mySkills, onApply }) {
     { who: "bot", text: "Hi! I'm QuickieBot 👋 Tell me what you're looking for — e.g. “remote react jobs in Germany” or “internships posted this week” — and I'll set the filters and pull the best matches." },
   ]);
   const [input, setInput] = useState("");
+  const [listening, setListening] = useState(false);
+  const [voiceOk, setVoiceOk] = useState(false);
   const bodyRef = useRef(null);
+  const recogRef = useRef(null);
+
+  useEffect(() => {
+    setVoiceOk(typeof window !== "undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition));
+  }, []);
+
+  function voice() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+    if (listening) { recogRef.current?.stop(); return; }
+    const r = new SR();
+    r.lang = "en-US";
+    r.interimResults = true;
+    r.onresult = (e) => {
+      const t = [...e.results].map((x) => x[0].transcript).join("");
+      setInput(t);
+      if (e.results[e.results.length - 1].isFinal) { setListening(false); ask(t); }
+    };
+    r.onend = () => setListening(false);
+    r.onerror = () => setListening(false);
+    recogRef.current = r;
+    setListening(true);
+    r.start();
+  }
 
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight, behavior: "smooth" });
@@ -144,8 +170,18 @@ export default function JobBot({ jobs, countryNames, mySkills, onApply }) {
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="e.g. remote python jobs in India…"
+              placeholder={listening ? "Listening… speak now" : "e.g. remote python jobs in India…"}
             />
+            {voiceOk && (
+              <button
+                type="button"
+                className={"btn micbtn" + (listening ? " live" : "")}
+                onClick={voice}
+                title={listening ? "Stop listening" : "Search by voice"}
+              >
+                🎤
+              </button>
+            )}
             <button className="btn primary" type="submit">Send</button>
           </form>
         </div>

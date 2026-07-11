@@ -62,6 +62,23 @@ export default function Admin() {
       <td>{u.email}</td>
       <td><span className={"pill " + u.status}>{u.status}</span></td>
       <td>{u.accountType === "employer" ? "Employer" : u.role === "admin" ? "Admin" : "Job seeker"}</td>
+      <td>
+        {u.onboarding?.idAt ? (
+          <span className="idcell">
+            {u.onboarding.faceMatch != null
+              ? <span className={"pill " + (u.onboarding.faceMatch > 0.5 ? "approved" : u.onboarding.faceMatch > 0.38 ? "pending" : "rejected")}>
+                  face {(u.onboarding.faceMatch * 100).toFixed(0)}%
+                </span>
+              : <span className="pill pending">manual check</span>}
+            <a href={`/api/admin/file?uid=${u.id}&kind=video`} target="_blank" rel="noreferrer">video</a>
+            <a href={`/api/admin/file?uid=${u.id}&kind=id`} target="_blank" rel="noreferrer">ID</a>
+          </span>
+        ) : u.onboarding?.interviewAt ? (
+          <span className="pill pending">interview only</span>
+        ) : u.role === "admin" ? "—" : (
+          <span className="pill rejected">not verified</span>
+        )}
+      </td>
       <td>{new Date(u.createdAt).toLocaleDateString()}</td>
       <td>
         <div className="actions">
@@ -110,7 +127,7 @@ export default function Admin() {
           <div className="state">No pending access requests.</div>
         ) : (
           <table className="table">
-            <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Type</th><th>Requested</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Type</th><th>Identity</th><th>Requested</th><th>Actions</th></tr></thead>
             <tbody>{pending.map((u) => <Row key={u.id} u={u} />)}</tbody>
           </table>
         )}
@@ -118,7 +135,7 @@ export default function Admin() {
         <h2 className="section-title">All members ({others.length})</h2>
         {!loading && others.length > 0 && (
           <table className="table">
-            <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Type</th><th>Joined</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Type</th><th>Identity</th><th>Joined</th><th>Actions</th></tr></thead>
             <tbody>{others.map((u) => <Row key={u.id} u={u} />)}</tbody>
           </table>
         )}

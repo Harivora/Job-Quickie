@@ -35,7 +35,7 @@ export default function Landing() {
       }
       return;
     }
-    router.push(data.role === "admin" ? "/admin" : "/dashboard");
+    router.push(data.role === "admin" ? "/admin" : data.onboarded ? "/dashboard" : "/onboarding");
   }
 
   return (

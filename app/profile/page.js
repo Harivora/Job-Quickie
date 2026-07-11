@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Loader from "@/components/Loader";
 import ThemeToggle from "@/components/ThemeToggle";
-import { CATALOG } from "@/components/SkillUnlock";
+import { extractFields } from "@/lib/resume";
 
 const PDFJS = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js";
 const PDFJS_WORKER = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
@@ -49,6 +49,13 @@ export default function ProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [name, setName] = useState("");
+  const [headline, setHeadline] = useState("");
+  const [phone, setPhone] = useState("");
+  const [location, setLocation] = useState("");
+  const [website, setWebsite] = useState("");
+  const [github, setGithub] = useState("");
+  const [linkedin, setLinkedin] = useState("");
+  const [summary, setSummary] = useState("");
   const [skills, setSkills] = useState([]);
   const [skillInput, setSkillInput] = useState("");
   const [curPw, setCurPw] = useState("");
@@ -68,41 +75,49 @@ export default function ProfilePage() {
     setMsg(null);
     try {
       const text = await extractText(file);
-      const lower = text.toLowerCase();
-      // pull skills the resume mentions
-      const found = CATALOG.filter((s) => {
-        const sl = s.toLowerCase();
-        return lower.includes(sl) && !skills.some((x) => x.toLowerCase() === sl);
-      });
+      const f = extractFields(text);
+      const found = f.skills.filter((s) => !skills.some((x) => x.toLowerCase() === s.toLowerCase()));
       const nextSkills = [...skills, ...found];
+      const nextName = name.trim() || f.name || "";
+      const nextPhone = phone.trim() || f.phone || "";
+      const nextLocation = location.trim() || f.location || "";
       setSkills(nextSkills);
-      // guess a name from the first meaningful line if the field is empty
-      let nextName = name;
-      if (!nextName.trim()) {
-        const line = text.split("\n").map((l) => l.trim()).find((l) => l.length > 2 && l.length < 50 && /^[A-Za-z][A-Za-z .'-]+$/.test(l));
-        if (line) { nextName = line; setName(line); }
-      }
+      if (!name.trim() && f.name) setName(f.name);
+      if (!headline && f.headline) setHeadline(f.headline);
+      if (!phone.trim() && f.phone) setPhone(f.phone);
+      if (!location.trim() && f.location) setLocation(f.location);
+      if (!website && f.website) setWebsite(f.website);
+      if (!github && f.github) setGithub(f.github);
+      if (!linkedin && f.linkedin) setLinkedin(f.linkedin);
+      if (!summary && f.summary) setSummary(f.summary);
       // save what we extracted immediately
       await fetch("/api/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: nextName || undefined, skills: nextSkills }),
+        body: JSON.stringify({
+          name: nextName || undefined, skills: nextSkills,
+          headline: headline || f.headline || "", phone: nextPhone, location: nextLocation,
+          website: website || f.website || "", github: github || f.github || "",
+          linkedin: linkedin || f.linkedin || "", summary: summary || f.summary || "",
+        }),
       });
-      setMsg({ ok: true, text: `Resume imported — found ${found.length} skill${found.length === 1 ? "" : "s"}${found.length ? `: ${found.slice(0, 6).join(", ")}${found.length > 6 ? "…" : ""}` : ""}.` });
+      setMsg({ ok: true, text: `Resume imported — found ${found.length} skill${found.length === 1 ? "" : "s"}${found.length ? `: ${found.slice(0, 6).join(", ")}${found.length > 6 ? "…" : ""}` : ""}${f.phone || f.location ? " plus contact details" : ""}.` });
       // anything mandatory still missing? force the popup
-      if (!(nextName || "").trim() || nextSkills.length < 3) setNeedInfo(true);
+      if (!nextName.trim() || !nextPhone.trim() || !nextLocation.trim() || nextSkills.length < 3) setNeedInfo(true);
     } catch (err) {
       setMsg({ ok: false, text: err.message || "Could not read that file." });
     }
     setParsing(false);
   }
 
+  const mandatoryOk = name.trim() && phone.trim() && location.trim() && skills.length >= 3;
+
   async function completeMandatory() {
-    if (!name.trim() || skills.length < 3) return;
+    if (!mandatoryOk) return;
     await fetch("/api/profile", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, skills }),
+      body: JSON.stringify({ name, skills, phone, location }),
     });
     setNeedInfo(false);
     setMsg({ ok: true, text: "Profile completed — you're all set." });
@@ -121,6 +136,13 @@ export default function ProfilePage() {
         }
         setUser(d.user);
         setName(d.user.name || "");
+        setHeadline(d.user.headline || "");
+        setPhone(d.user.phone || "");
+        setLocation(d.user.location || "");
+        setWebsite(d.user.website || "");
+        setGithub(d.user.github || "");
+        setLinkedin(d.user.linkedin || "");
+        setSummary(d.user.summary || "");
         setSkills(d.user.skills || []);
         if (d.user.recordMissing) {
           setMsg({ ok: false, text: "Your account record was reset on the server (this happens when the host redeploys without persistent storage). You can browse, but sign out and register again to save profile changes." });
@@ -148,8 +170,9 @@ export default function ProfilePage() {
       if (newPw !== confPw) { setMsg({ ok: false, text: "New passwords do not match." }); return; }
       if (!curPw) { setMsg({ ok: false, text: "Enter your current password to change it." }); return; }
     }
+    if (!phone.trim() || !location.trim()) { setMsg({ ok: false, text: "Phone and location are mandatory." }); return; }
     setBusy(true);
-    const body = { name, skills };
+    const body = { name, skills, headline, phone, location, website, github, linkedin, summary };
     if (newPw) { body.currentPassword = curPw; body.newPassword = newPw; }
     const res = await fetch("/api/profile", {
       method: "PUT",
@@ -214,8 +237,31 @@ export default function ProfilePage() {
           <div className="panel">
             <h2 className="panel-title">Account</h2>
             <label className="field">
-              <span>Full name</span>
+              <span>Full name *</span>
               <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" required />
+            </label>
+            <label className="field">
+              <span>Headline</span>
+              <input value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="e.g. AI/ML Engineer · LLM Applications" />
+            </label>
+            <div className="pw-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
+              <label className="field">
+                <span>Phone *</span>
+                <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 88497 …" required />
+              </label>
+              <label className="field">
+                <span>Location *</span>
+                <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Rajkot, Gujarat, India" required />
+              </label>
+            </div>
+            <div className="pw-grid">
+              <label className="field"><span>Website</span><input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://…" /></label>
+              <label className="field"><span>GitHub</span><input value={github} onChange={(e) => setGithub(e.target.value)} placeholder="https://github.com/…" /></label>
+              <label className="field"><span>LinkedIn</span><input value={linkedin} onChange={(e) => setLinkedin(e.target.value)} placeholder="https://linkedin.com/in/…" /></label>
+            </div>
+            <label className="field">
+              <span>Professional summary</span>
+              <textarea className="savednote" rows={3} value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="A few lines about what you do best…" />
             </label>
             <label className="field">
               <span>Email address</span>
@@ -283,6 +329,18 @@ export default function ProfilePage() {
                 <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" autoFocus />
               </label>
             )}
+            {!phone.trim() && (
+              <label className="field">
+                <span>Phone *</span>
+                <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 …" />
+              </label>
+            )}
+            {!location.trim() && (
+              <label className="field">
+                <span>Location *</span>
+                <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="City, Country" />
+              </label>
+            )}
             {skills.length < 3 && (
               <>
                 <label className="field" style={{ marginBottom: 6 }}>
@@ -320,10 +378,10 @@ export default function ProfilePage() {
             )}
             <button
               className="btn primary block"
-              disabled={!name.trim() || skills.length < 3}
+              disabled={!mandatoryOk}
               onClick={completeMandatory}
             >
-              {!name.trim() || skills.length < 3 ? "Fill the required fields to continue" : "Complete my profile"}
+              {!mandatoryOk ? "Fill the required fields to continue" : "Complete my profile"}
             </button>
           </div>
         </div>

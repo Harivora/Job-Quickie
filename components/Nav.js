@@ -20,6 +20,11 @@ export default function Nav() {
     fetch("/api/profile").then((r) => (r.ok ? r.json() : null)).then((d) => {
       if (d?.user?.role === "admin") setIsAdmin(true);
     }).catch(() => {});
+    // onboarding gate: profile + interview + ID are mandatory before browsing
+    fetch("/api/onboarding").then((r) => (r.ok ? r.json() : null)).then((d) => {
+      if (d && !d.complete && !d.isAdmin) router.replace("/onboarding");
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function logout() {
