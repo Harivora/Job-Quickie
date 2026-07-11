@@ -74,7 +74,7 @@ select option { background: var(--surface); color: var(--text); }
 .updated { color: var(--faint); font-size: 12.5px; }
 
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--border2); background: var(--surface2); color: var(--text); padding: 8px 16px; border-radius: var(--radius); font-size: 13.5px; font-weight: 500; cursor: pointer; transition: background .12s, border-color .12s; }
-.btn:hover { background: #1c2536; border-color: #35425a; }
+.btn:hover { background: var(--border); border-color: var(--border2); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn.primary:hover { background: var(--accent-dark); }
 .btn.danger { color: var(--red); border-color: rgba(248, 113, 113, 0.35); }
@@ -415,3 +415,28 @@ html[data-theme="light"] .themeicon .ti-moon { opacity: 0; transform: rotate(-12
 .table tr:last-child td { border-bottom: none; }
 .actions { display: flex; gap: 8px; }
 .section-title { font-size: 16px; font-weight: 600; margin: 26px 0 12px; }
+
+/* ---- Multi-page: nav, page headers, companies, saved ---- */
+.mainnav { display: flex; gap: 2px; align-items: center; flex: 1; margin: 0 18px; overflow-x: auto; }
+.navlink { background: none; border: none; color: var(--muted); font-size: 13.5px; font-weight: 500; padding: 8px 13px; border-radius: 8px; cursor: pointer; white-space: nowrap; transition: color .12s, background .12s; }
+.navlink:hover { color: var(--text); background: var(--hoverrow); }
+.navlink.active { color: var(--accent); background: var(--grad-soft); font-weight: 600; }
+.pagetitle { font-size: 21px; font-weight: 700; }
+.pagesub { color: var(--muted); font-size: 13px; margin: 4px 0 18px; }
+.toolrow { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding-top: 20px; flex-wrap: wrap; }
+.companygrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 980px) { .companygrid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .companygrid { grid-template-columns: 1fr; } }
+.companycard { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; cursor: pointer; transition: transform .15s, border-color .15s; }
+.companycard:hover { transform: translateY(-2px); border-color: var(--accent); }
+.cc-main { min-width: 0; flex: 1; }
+.cc-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cc-sub { color: var(--muted); font-size: 12px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cc-count { background: var(--grad); color: #fff; font-weight: 700; font-size: 12px; border-radius: 999px; padding: 3px 10px; flex-shrink: 0; }
+.savedlist { display: flex; flex-direction: column; gap: 12px; }
+.savedcard { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.savedtop { display: flex; align-items: center; gap: 14px; }
+.stsel { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; cursor: pointer; }
+.savednote { width: 100%; margin-top: 10px; background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 11px; font-size: 12.5px; font-family: inherit; resize: vertical; }
+.savednote::placeholder { color: var(--faint); }
+@media (max-width: 700px) { .savedtop { flex-wrap: wrap; } .mainnav { margin: 0 6px; } }

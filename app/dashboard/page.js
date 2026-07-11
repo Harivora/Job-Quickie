@@ -2,14 +2,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Loader from "@/components/Loader";
-import dynamic from "next/dynamic";
 import { matchLocation, CITIES } from "@/lib/geo";
-import Insights from "@/components/Insights";
-import ThemeToggle from "@/components/ThemeToggle";
 import JobBot from "@/components/JobBot";
-import SkillUnlock from "@/components/SkillUnlock";
-
-const JobGlobe = dynamic(() => import("@/components/JobGlobe"), { ssr: false });
+import Nav from "@/components/Nav";
 
 const QUICK = [
   { label: "AI & Machine Learning", re: /\b(ai|a\.i\.|machine learning|ml engineer|artificial intelligence|deep learning|llm|nlp|computer vision|data scien)/i },
@@ -83,8 +78,6 @@ export default function Dashboard() {
   const [country, setCountry] = useState(null);
   const [city, setCity] = useState(null);
   const [includeWorldwide, setIncludeWorldwide] = useState(true);
-  const [showGlobe, setShowGlobe] = useState(true);
-  const [showCharts, setShowCharts] = useState(true);
   const [per, setPer] = useState(50);
   const [src, setSrc] = useState("all");
   const [when, setWhen] = useState("any");
@@ -100,29 +93,6 @@ export default function Dashboard() {
   const [hasSal, setHasSal] = useState(false);
   const [exp, setExp] = useState("all");
   const [showTop, setShowTop] = useState(false);
-  const [addingSkill, setAddingSkill] = useState(null);
-  const [skillMsg, setSkillMsg] = useState("");
-
-  async function addSkillToProfile(skill) {
-    if (mySkills.some((s) => s.toLowerCase() === skill.toLowerCase())) return;
-    setAddingSkill(skill);
-    setSkillMsg("");
-    try {
-      const res = await fetch("/api/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ skills: [...mySkills, skill] }),
-      });
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error || "Could not save");
-      setMySkills(d.user.skills || []);
-      setSkillMsg(`✓ ${skill} added to your profile — your “For you” feed just grew.`);
-      setTimeout(() => setSkillMsg(""), 4000);
-    } catch (e) {
-      setSkillMsg(`Couldn't add ${skill}: ${e.message}`);
-    }
-    setAddingSkill(null);
-  }
   const searchRef = useRef(null);
 
   // "/" focuses search (like GitHub/LinkedIn); track scroll for back-to-top
@@ -158,6 +128,11 @@ export default function Dashboard() {
   useEffect(() => {
     try { setSaved(JSON.parse(localStorage.getItem("jq_saved") || "{}")); } catch {}
     try { setViewed(JSON.parse(localStorage.getItem("jq_viewed") || "{}")); } catch {}
+    // deep-link filters: /dashboard?q=…&country=…&city=…
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get("q")) setQ(sp.get("q"));
+    if (sp.get("country")) setCountry(sp.get("country"));
+    if (sp.get("city")) setCity(sp.get("city"));
     // profile skills power the "For you" tab + match badges
     fetch("/api/profile").then((r) => (r.ok ? r.json() : null)).then((d) => {
       if (d?.user?.skills) setMySkills(d.user.skills);
@@ -320,11 +295,6 @@ export default function Dashboard() {
     return [...out].filter((n) => n >= 1 && n <= totalPages).sort((a, b) => a - b);
   }, [cur, totalPages]);
 
-  const roleCounts = useMemo(
-    () => QUICK.map((c) => ({ label: c.label, count: filtered.filter((j) => c.re.test(j.hay + " " + j.title)).length })),
-    [filtered]
-  );
-
   // chip counts stay stable (computed on the full set) so they show what you'd get
   const quickCounts = useMemo(
     () => QUICK.map((c) => jobs.filter((j) => c.re.test(j.hay + " " + j.title)).length),
@@ -366,24 +336,18 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div className="topbar">
-        <div className="wrap topbar-inner">
-          <div className="brand">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="brand-logo" src="/logo.svg" alt="JobQuickie" />
-            Job<span style={{ color: "#2f7bff" }}>Quickie</span>
+      <Nav />
+      <main className="wrap" style={{ paddingBottom: 40 }}>
+        <div className="toolrow">
+          <div>
+            <h1 className="pagetitle">Live openings</h1>
+            <p className="pagesub">Aggregated in real time from nine sources. Deep-dive by map on the Explore tab.</p>
           </div>
-          <div className="top-right">
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {updated && <span className="updated">Updated {updated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
-            <ThemeToggle />
             <button className="btn primary" onClick={load} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</button>
-            <button className="btn" onClick={() => router.push("/profile")}>Profile</button>
-            <button className="btn" onClick={logout}>Sign out</button>
           </div>
         </div>
-      </div>
-
-      <main className="wrap" style={{ paddingBottom: 40 }}>
         <div className="statrow">
           {[["all", "Open positions", base.length], ["remote", "Remote", count("remote")], ["hybrid", "Hybrid", count("hybrid")], ["onsite", "On-site", count("onsite")]].map(([id, lbl, n]) => (
             <div
@@ -399,99 +363,12 @@ export default function Dashboard() {
 
         {error && <div className="banner">{error}</div>}
 
-        <div className="globepanel">
-          <div className="globepanel-head">
-            <div>
-              <div className="globepanel-title">Explore by location</div>
-              <div className="globepanel-sub">Drag to roam the globe · click a marker to filter by country</div>
-            </div>
-            <button className="btn" onClick={() => setShowGlobe(!showGlobe)}>
-              {showGlobe ? "Hide globe" : "Show globe"}
-            </button>
+        {country && (
+          <div className="foryou-hint" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+            <span>🌍 Filtering by <b>{city ? `${city.replace(/(^|\s)\S/g, (c) => c.toUpperCase())}, ` : ""}{country}</b> — set on the Explore globe.</span>
+            <button className="btn" onClick={() => { selectCountry(null); }}>Clear</button>
           </div>
-          {showGlobe && (
-            <div className="globepanel-body">
-              <div className="globepanel-canvas">
-                <JobGlobe
-                  counts={countryCounts}
-                  selected={country}
-                  onSelect={selectCountry}
-                  cityPoints={cityPoints}
-                  selectedCity={city}
-                  onSelectCity={(c) => { setCity(c); setPage(1); }}
-                />
-              </div>
-              <div className="globepanel-side">
-                {country ? (
-                  <>
-                    <div className="geosel">
-                      <span className="pill approved">{country}</span>
-                      <button className="btn" onClick={() => selectCountry(null)}>Clear</button>
-                    </div>
-                    <label className="geotoggle">
-                      <input
-                        type="checkbox"
-                        checked={includeWorldwide}
-                        onChange={(e) => { setIncludeWorldwide(e.target.checked); setPage(1); }}
-                      />
-                      Include worldwide-remote roles
-                    </label>
-                    {cityPoints.length > 0 && (
-                      <>
-                        <div className="geolabel">Cities — click a marker on the globe or a chip</div>
-                        <div className="chiprow" style={{ marginTop: 6 }}>
-                          {cityPoints.slice(0, 10).map((cp) => (
-                            <span
-                              key={cp.name}
-                              className={"chip" + (city === cp.name ? " on" : "")}
-                              onClick={() => { setCity(city === cp.name ? null : cp.name); setPage(1); }}
-                            >
-                              {cp.label} · {cp.count}
-                            </span>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <div className="geolabel">Top countries</div>
-                    <div className="chiprow" style={{ marginTop: 6 }}>
-                      {Object.entries(countryCounts)
-                        .sort((a, b) => b[1] - a[1])
-                        .slice(0, 10)
-                        .map(([c, n]) => (
-                          <span key={c} className="chip" onClick={() => selectCountry(c)}>
-                            {c} · {n}
-                          </span>
-                        ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="globepanel">
-          <div className="globepanel-head">
-            <div>
-              <div className="globepanel-title">Market insights</div>
-              <div className="globepanel-sub">Live charts — they follow every filter you apply below</div>
-            </div>
-            <button className="btn" onClick={() => setShowCharts(!showCharts)}>
-              {showCharts ? "Hide charts" : "Show charts"}
-            </button>
-          </div>
-          {showCharts && (
-            <div style={{ borderTop: "1px solid var(--border)", padding: 18 }}>
-              <Insights jobs={filtered} roles={roleCounts} />
-            </div>
-          )}
-        </div>
-
-        <SkillUnlock jobs={jobs} mySkills={mySkills} onAddSkill={addSkillToProfile} adding={addingSkill} />
-        {skillMsg && <div className={skillMsg.startsWith("✓") ? "authok" : "autherr"} style={{ marginBottom: 14 }}>{skillMsg}</div>}
+        )}
 
         <div className="filterbar">
           <div className="frow">
