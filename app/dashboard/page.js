@@ -7,6 +7,7 @@ import { matchLocation, CITIES } from "@/lib/geo";
 import Insights from "@/components/Insights";
 import ThemeToggle from "@/components/ThemeToggle";
 import JobBot from "@/components/JobBot";
+import SkillUnlock from "@/components/SkillUnlock";
 
 const JobGlobe = dynamic(() => import("@/components/JobGlobe"), { ssr: false });
 
@@ -99,6 +100,29 @@ export default function Dashboard() {
   const [hasSal, setHasSal] = useState(false);
   const [exp, setExp] = useState("all");
   const [showTop, setShowTop] = useState(false);
+  const [addingSkill, setAddingSkill] = useState(null);
+  const [skillMsg, setSkillMsg] = useState("");
+
+  async function addSkillToProfile(skill) {
+    if (mySkills.some((s) => s.toLowerCase() === skill.toLowerCase())) return;
+    setAddingSkill(skill);
+    setSkillMsg("");
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ skills: [...mySkills, skill] }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "Could not save");
+      setMySkills(d.user.skills || []);
+      setSkillMsg(`✓ ${skill} added to your profile — your “For you” feed just grew.`);
+      setTimeout(() => setSkillMsg(""), 4000);
+    } catch (e) {
+      setSkillMsg(`Couldn't add ${skill}: ${e.message}`);
+    }
+    setAddingSkill(null);
+  }
   const searchRef = useRef(null);
 
   // "/" focuses search (like GitHub/LinkedIn); track scroll for back-to-top
@@ -465,6 +489,9 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+
+        <SkillUnlock jobs={jobs} mySkills={mySkills} onAddSkill={addSkillToProfile} adding={addingSkill} />
+        {skillMsg && <div className={skillMsg.startsWith("✓") ? "authok" : "autherr"} style={{ marginBottom: 14 }}>{skillMsg}</div>}
 
         <div className="filterbar">
           <div className="frow">
