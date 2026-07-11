@@ -394,13 +394,13 @@ html[data-theme="light"] .themeicon .ti-moon { opacity: 0; transform: rotate(-12
 .authok { background: rgba(29,167,101,.12); border: 1px solid rgba(29,167,101,.4); color: #7be0b3; border-radius: 8px; padding: 8px 12px; font-size: 12.5px; }
 
 /* ---- Globe panel ---- */
-.globepanel { background: #070b13; border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; }
+.globepanel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; }
 .globepanel-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; }
 .globepanel-title { color: var(--text); font-weight: 600; font-size: 14px; }
 .globepanel-sub { color: var(--faint); font-size: 12px; margin-top: 2px; }
 .globepanel-body { display: grid; grid-template-columns: 1.35fr 1fr; gap: 0; border-top: 1px solid var(--border); }
 @media (max-width: 820px) { .globepanel-body { grid-template-columns: 1fr; } }
-.globepanel-canvas { height: 440px; overflow: hidden; }
+.globepanel-canvas { height: 440px; overflow: hidden; background: #06090f; }
 .globepanel-side { padding: 18px; border-left: 1px solid var(--border); }
 @media (max-width: 820px) { .globepanel-side { border-left: none; border-top: 1px solid var(--border); } }
 .geolabel { color: var(--faint); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; font-weight: 600; margin-top: 4px; }
