@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icons";
 import { useEffect, useMemo, useState } from "react";
 import Nav from "@/components/Nav";
 import Loader from "@/components/Loader";
@@ -94,7 +95,7 @@ export default function Autopilot() {
     <div>
       <Nav />
       <main className="wrap" style={{ paddingTop: 20, paddingBottom: 40 }}>
-        <h1 className="pagetitle">⚡ Auto-Apply Autopilot</h1>
+        <h1 className="pagetitle"><Icon name="zap" size={19} filled style={{ color: "var(--accent)" }} /> Auto-Apply Autopilot</h1>
         <p className="pagesub">
           Your resume did the work: Autopilot picks the {QUEUE_SIZE} best matches for your skills, writes the cover letter,
           and preps every answer. Review, hit apply, done — each application is tracked automatically in Saved.
@@ -107,7 +108,7 @@ export default function Autopilot() {
         ) : !profile.skills?.length ? (
           <div className="state"><h3>Autopilot needs your skills</h3>Upload your resume on the <a href="/profile">profile page</a> and come back — everything else is automatic.</div>
         ) : !queue.length ? (
-          <div className="state"><h3>Queue clear 🎉</h3>You&apos;ve worked through every current match. New jobs arrive all day — check back soon.</div>
+          <div className="state"><h3><Icon name="check" size={16} style={{ color: "var(--green)" }} /> Queue clear</h3>You&apos;ve worked through every current match. New jobs arrive all day — check back soon.</div>
         ) : (
           <>
             {justApplied && <div className="authok" style={{ marginBottom: 12 }}>{justApplied}</div>}
@@ -147,7 +148,7 @@ export default function Autopilot() {
                 </div>
                 {item.j.desc && <p className="jd-desc">{item.j.desc.slice(0, 300)}…</p>}
                 <div className="jd-actions" style={{ marginTop: 14 }}>
-                  <button className="btn primary" onClick={applyNow}>⚡ Apply now — opens the form ↗</button>
+                  <button className="btn primary" onClick={applyNow}><Icon name="zap" size={14} filled /> Apply now — opens the form ↗</button>
                   <button className="btn" onClick={skip}>Skip</button>
                 </div>
                 {status[jkey(item.j)] === "applied" && <div className="authok" style={{ marginTop: 10 }}>Marked as applied and added to your Saved tracker ✓</div>}
@@ -158,7 +159,7 @@ export default function Autopilot() {
                   <h2 className="panel-title">Cover letter — auto-written, edit freely</h2>
                   <textarea className="savednote" rows={9} value={letter} onChange={(e) => setLetter(e.target.value)} />
                   <button className="btn" style={{ marginTop: 8 }} onClick={() => copy("letter", letter)}>
-                    {copied === "letter" ? "Copied ✓" : "📋 Copy letter"}
+                    {copied === "letter" ? "Copied ✓" : <><Icon name="copy" size={13} /> Copy letter</>}
                   </button>
                 </div>
                 <div className="panel">
@@ -168,7 +169,7 @@ export default function Autopilot() {
                       <button key={label} className="ap-field" onClick={() => copy(label, val)} title="Copy">
                         <span>{label}</span>
                         <b>{String(val).slice(0, 46)}{String(val).length > 46 ? "…" : ""}</b>
-                        <em>{copied === label ? "✓" : "📋"}</em>
+                        <em><Icon name={copied === label ? "check" : "copy"} size={13} /></em>
                       </button>
                     ))}
                   </div>

@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icons";
 import { useMemo, useState } from "react";
 
 // Skill Unlocks — unique to JobQuickie.
@@ -65,7 +66,7 @@ export default function SkillUnlock({ jobs, mySkills, onAddSkill, adding }) {
     <div className="globepanel">
       <div className="globepanel-head">
         <div>
-          <div className="globepanel-title">🔓 Skill Unlocks <span className="unique-badge">only on JobQuickie</span></div>
+          <div className="globepanel-title"><Icon name="unlock" size={15} /> Skill Unlocks <span className="unique-badge">only on JobQuickie</span></div>
           <div className="globepanel-sub">
             {mySkills.length
               ? `Your ${mySkills.length} skill${mySkills.length === 1 ? "" : "s"} match ${baseCount.toLocaleString()} live jobs — here's what adding one more would unlock`

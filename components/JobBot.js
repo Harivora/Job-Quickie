@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icons";
 import { useEffect, useRef, useState } from "react";
 
 // QuickieBot — an assistant that understands plain-language job requests,
@@ -40,7 +41,7 @@ const SUGGESTIONS = [
 export default function JobBot({ jobs, countryNames, mySkills, onApply }) {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState([
-    { who: "bot", text: "Hi! I'm QuickieBot 👋 Tell me what you're looking for — e.g. “remote react jobs in Germany” or “internships posted this week” — and I'll set the filters and pull the best matches." },
+    { who: "bot", text: "Hi! I'm QuickieBot. Tell me what you're looking for — e.g. “remote react jobs in Germany” or “internships posted this week” — and I'll set the filters and pull the best matches." },
   ]);
   const [input, setInput] = useState("");
   const [listening, setListening] = useState(false);
@@ -179,7 +180,7 @@ export default function JobBot({ jobs, countryNames, mySkills, onApply }) {
                 onClick={voice}
                 title={listening ? "Stop listening" : "Search by voice"}
               >
-                🎤
+                <Icon name="mic" size={16} />
               </button>
             )}
             <button className="btn primary" type="submit">Send</button>

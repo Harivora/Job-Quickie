@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icons";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Loader from "@/components/Loader";
@@ -318,7 +319,7 @@ export default function Onboarding() {
             <h1 className="pagetitle">Set up your profile</h1>
             <p className="pagesub">Required before you can search jobs. Upload your resume to fill it automatically, or type it in. Fields marked * are mandatory.</p>
             <label className={"btn primary" + (parsing ? " disabled" : "")} style={{ cursor: "pointer", marginBottom: 16 }}>
-              {parsing ? "Reading resume…" : imported ? "⬆ Re-upload resume" : "⬆ Upload resume (PDF / TXT)"}
+              {parsing ? "Reading resume…" : <><Icon name="upload" size={14} /> {imported ? "Re-upload resume" : "Upload resume (PDF / TXT)"}</>}
               <input type="file" accept=".pdf,.txt" onChange={onResume} disabled={parsing} style={{ display: "none" }} />
             </label>
             {imported && <div className="authok" style={{ marginBottom: 12 }}>Resume imported — review the fields below, fill anything missing, and continue.</div>}
@@ -412,7 +413,7 @@ export default function Onboarding() {
             ) : (
               <label className="id-drop">
                 <input type="file" accept="image/*" onChange={onIdFile} style={{ display: "none" }} />
-                <span>🪪 Tap to upload your ID card photo</span>
+                <span><Icon name="idcard" size={18} /> Tap to upload your ID card photo</span>
               </label>
             )}
             {matchNote && <div className={matchScore !== null && matchScore > 0.38 ? "authok" : "autherr"} style={{ marginTop: 12 }}>{matchNote}{matchScore !== null ? ` (similarity ${(matchScore * 100).toFixed(0)}%)` : ""}</div>}
@@ -429,7 +430,7 @@ export default function Onboarding() {
 
         {step === 4 && (
           <div style={{ textAlign: "center", padding: "30px 0" }}>
-            <div style={{ fontSize: 44 }}>🎉</div>
+            <div style={{ color: "var(--green)" }}><Icon name="check" size={46} /></div>
             <h1 className="pagetitle">You&apos;re all set!</h1>
             <p className="pagesub">Profile complete, interview recorded, identity submitted. Taking you to the jobs…</p>
             <Loader label="" size={56} />

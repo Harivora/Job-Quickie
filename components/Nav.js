@@ -1,11 +1,12 @@
 "use client";
+import Icon from "@/components/Icons";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const LINKS = [
   { href: "/dashboard", label: "Jobs" },
-  { href: "/autopilot", label: "⚡ Autopilot" },
+  { href: "/autopilot", label: "Autopilot", icon: "zap" },
   { href: "/explore", label: "Explore" },
   { href: "/skills", label: "Skills" },
   { href: "/companies", label: "Companies" },
@@ -48,7 +49,7 @@ export default function Nav() {
               className={"navlink" + (pathname === l.href ? " active" : "")}
               onClick={() => router.push(l.href)}
             >
-              {l.label}
+              {l.icon && <Icon name={l.icon} size={13} />} {l.label}
             </button>
           ))}
           {isAdmin && (

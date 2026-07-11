@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icons";
 import { useEffect, useMemo, useState } from "react";
 import Nav from "@/components/Nav";
 import Loader from "@/components/Loader";
@@ -78,7 +79,7 @@ export default function SavedPage() {
             <h1 className="pagetitle">Saved jobs</h1>
             <p className="pagesub">Your shortlist — track applications and keep notes. Stored privately in your browser.</p>
           </div>
-          {savedJobs.length > 0 && <button className="btn" onClick={exportCsv}>⬇ Export CSV</button>}
+          {savedJobs.length > 0 && <button className="btn" onClick={exportCsv}><Icon name="download" size={13} /> Export CSV</button>}
         </div>
         {loading && !jobs.length ? (
           <Loader full label="Fetching your shortlist…" />
@@ -112,7 +113,7 @@ export default function SavedPage() {
                       {ST.map((s) => <option key={s} value={s}>{s[0].toUpperCase() + s.slice(1)}</option>)}
                     </select>
                     <a className="btn primary" href={j.url} target="_blank" rel="noopener noreferrer">Apply ↗</a>
-                    <button className="savebtn on" title="Remove from saved" onClick={() => unsave(j)}>★</button>
+                    <button className="savebtn on" title="Remove from saved" onClick={() => unsave(j)}><Icon name="star" size={16} filled /></button>
                   </div>
                 </div>
                 <textarea

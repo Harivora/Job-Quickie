@@ -14,7 +14,8 @@ export async function middleware(req) {
     } catch {}
   }
 
-  if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) {
+  const PROTECTED = ["/dashboard", "/admin", "/autopilot", "/explore", "/skills", "/companies", "/saved", "/profile", "/onboarding"];
+  if (PROTECTED.some((p) => pathname.startsWith(p))) {
     if (!session) return NextResponse.redirect(new URL("/", req.url));
     if (session.status !== "approved")
       return NextResponse.redirect(new URL("/pending", req.url));
@@ -28,5 +29,5 @@ export async function middleware(req) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*", "/pending"],
+  matcher: ["/dashboard/:path*", "/admin/:path*", "/autopilot/:path*", "/explore/:path*", "/skills/:path*", "/companies/:path*", "/saved/:path*", "/profile/:path*", "/onboarding/:path*", "/pending"],
 };

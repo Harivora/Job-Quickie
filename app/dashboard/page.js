@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Loader from "@/components/Loader";
@@ -398,7 +399,7 @@ export default function Dashboard() {
 
         {country && (
           <div className="foryou-hint" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-            <span>🌍 Filtering by <b>{city ? `${city.replace(/(^|\s)\S/g, (c) => c.toUpperCase())}, ` : ""}{country}</b> — set on the Explore globe.</span>
+            <span><Icon name="globe" size={13} /> Filtering by <b>{city ? `${city.replace(/(^|\s)\S/g, (c) => c.toUpperCase())}, ` : ""}{country}</b> — set on the Explore globe.</span>
             <button className="btn" onClick={() => { selectCountry(null); }}>Clear</button>
           </div>
         )}
@@ -467,7 +468,7 @@ export default function Dashboard() {
           </div>
           {quickCounts.some((n) => n > 0) && (
             <div className="trending">
-              🔥 Trending now:
+              <Icon name="flame" size={14} filled style={{ color: "#f5a623" }} /> Trending now:
               {QUICK.map((c, i) => ({ label: c.label, i, n: quickCounts[i] }))
                 .sort((a, b) => b.n - a.n)
                 .slice(0, 4)
@@ -496,19 +497,19 @@ export default function Dashboard() {
             onClick={() => { setForYou(!forYou); setPage(1); }}
             title={mySkills.length ? `Matching your skills: ${mySkills.join(", ")}` : "Add skills in your profile to unlock"}
           >
-            ✨ For you
+            <Icon name="sparkle" size={13} /> For you
           </button>
           <button
             className={"tab saved-tab" + (showSaved ? " active" : "")}
             onClick={() => { setShowSaved(!showSaved); setPage(1); }}
           >
-            ★ Saved<span className="n">{savedCount}</span>
+            <Icon name="star" size={13} /> Saved<span className="n">{savedCount}</span>
           </button>
         </div>
 
         {forYou && !mySkills.length && (
           <div className="foryou-hint">
-            <b>✨ For you</b> ranks jobs against your skills — but your profile has none yet.{" "}
+            <b><Icon name="sparkle" size={13} /> For you</b> ranks jobs against your skills — but your profile has none yet.{" "}
             <a href="/profile">Add skills to your profile</a> and this tab becomes your personal shortlist.
           </div>
         )}
@@ -519,7 +520,7 @@ export default function Dashboard() {
             {country ? ` in ${city ? (cityPoints.find((c) => c.name === city)?.label || city) + ", " : ""}${country}` : ""}
           </span>
           {showSaved && savedCount > 0 && (
-            <button className="btn" onClick={exportSaved}>⬇ Export saved ({savedCount}) as CSV</button>
+            <button className="btn" onClick={exportSaved}><Icon name="download" size={13} /> Export saved ({savedCount}) as CSV</button>
           )}
           <span className="srcbadges">
             {Object.entries(sources).map(([n, v]) => (
@@ -580,7 +581,7 @@ export default function Dashboard() {
                         title={saved[jkey(j)] ? "Remove from saved" : "Save job"}
                         onClick={(e) => { e.stopPropagation(); toggleSave(j); }}
                       >
-                        {saved[jkey(j)] ? "★" : "☆"}
+                        <Icon name="star" size={16} filled={!!saved[jkey(j)]} />
                       </button>
                     </div>
                   </div>
@@ -613,7 +614,7 @@ export default function Dashboard() {
                     <div className="jd-actions">
                       <a className="btn primary" href={sel.url} target="_blank" rel="noopener noreferrer">Apply now ↗</a>
                       <button className="btn" onClick={() => toggleSave(sel)}>
-                        {saved[jkey(sel)] ? "★ Saved" : "☆ Save"}
+                        <Icon name="star" size={14} filled={!!saved[jkey(sel)]} /> {saved[jkey(sel)] ? "Saved" : "Save"}
                       </button>
                       <button
                         className="btn"
@@ -634,7 +635,7 @@ export default function Dashboard() {
                       </div>
                     )}
                     <div className="jd-translate">
-                      <span>🌐</span>
+                      <Icon name="translate" size={15} style={{ color: "var(--muted)" }} />
                       <select
                         defaultValue=""
                         onChange={(e) => translateSel(e.target.value)}

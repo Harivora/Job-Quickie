@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icons";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Loader from "@/components/Loader";
@@ -72,8 +73,8 @@ export default function Admin() {
                   face {(u.onboarding.faceMatch * 100).toFixed(0)}%
                 </span>
               : <span className="pill pending">manual check</span>}
-            <button className="linkbtn" onClick={() => { setFileMissing(false); setViewer({ u, kind: "video" }); }}>▶ video</button>
-            <button className="linkbtn" onClick={() => { setFileMissing(false); setViewer({ u, kind: "id" }); }}>🪪 ID</button>
+            <button className="linkbtn" onClick={() => { setFileMissing(false); setViewer({ u, kind: "video" }); }}><Icon name="play" size={11} filled /> video</button>
+            <button className="linkbtn" onClick={() => { setFileMissing(false); setViewer({ u, kind: "id" }); }}><Icon name="idcard" size={13} /> ID</button>
           </span>
         ) : u.onboarding?.interviewAt ? (
           <span className="pill pending">interview only</span>

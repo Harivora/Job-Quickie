@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icons";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Loader from "@/components/Loader";
@@ -228,7 +229,7 @@ export default function ProfilePage() {
             </p>
           </div>
           <label className={"btn primary" + (parsing ? " disabled" : "")} style={{ cursor: "pointer", whiteSpace: "nowrap" }}>
-            {parsing ? "Reading…" : "⬆ Upload resume"}
+            {parsing ? "Reading…" : <><Icon name="upload" size={14} /> Upload resume</>}
             <input type="file" accept=".pdf,.txt,application/pdf,text/plain" onChange={onResume} disabled={parsing} style={{ display: "none" }} />
           </label>
         </div>
