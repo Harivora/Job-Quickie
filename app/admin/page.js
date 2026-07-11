@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Loader from "@/components/Loader";
+import Nav from "@/components/Nav";
 
 export default function Admin() {
   const router = useRouter();
@@ -31,11 +32,6 @@ export default function Admin() {
     load();
   }
 
-  async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/");
-  }
-
   const pending = users.filter((u) => u.status === "pending");
   const others = users.filter((u) => u.status !== "pending");
 
@@ -61,21 +57,11 @@ export default function Admin() {
 
   return (
     <div>
-      <div className="topbar">
-        <div className="wrap topbar-inner">
-          <div className="brand">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="brand-logo" src="/logo.svg" alt="JobQuickie" />
-            Job<span style={{ color: "#2f7bff" }}>Quickie</span>&nbsp;— Admin
-          </div>
-          <div className="top-right">
-            <a className="btn" href="/dashboard">Dashboard</a>
-            <button className="btn" onClick={logout}>Sign out</button>
-          </div>
-        </div>
-      </div>
+      <Nav />
 
       <main className="wrap" style={{ paddingBottom: 40 }}>
+        <h1 className="pagetitle" style={{ paddingTop: 20 }}>Member management</h1>
+        <p className="pagesub">Approve access requests and manage existing members.</p>
         {error && <div className="banner">{error}</div>}
         <h2 className="section-title">Pending approval ({pending.length})</h2>
         {loading ? (

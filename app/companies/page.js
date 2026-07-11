@@ -5,6 +5,13 @@ import Nav from "@/components/Nav";
 import Loader from "@/components/Loader";
 import { useJobs } from "@/lib/useJobs";
 
+// deterministic brand-ish color per company for placeholder avatars
+function hue(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+  return h;
+}
+
 export default function CompaniesPage() {
   const router = useRouter();
   const { jobs, loading } = useJobs();
@@ -63,7 +70,9 @@ export default function CompaniesPage() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img className="avatar" src={c.logo} alt="" loading="lazy" />
                 ) : (
-                  <div className="avatar ph">{c.name[0].toUpperCase()}</div>
+                  <div className="avatar ph" style={{ background: `hsl(${hue(c.name)} 55% 42%)`, color: "#fff", border: "none" }}>
+                    {c.name[0].toUpperCase()}
+                  </div>
                 )}
                 <div className="cc-main">
                   <div className="cc-name">{c.name}</div>

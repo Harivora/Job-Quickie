@@ -424,10 +424,11 @@ html[data-theme="light"] .themeicon .ti-moon { opacity: 0; transform: rotate(-12
 .pagetitle { font-size: 21px; font-weight: 700; }
 .pagesub { color: var(--muted); font-size: 13px; margin: 4px 0 18px; }
 .toolrow { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding-top: 20px; flex-wrap: wrap; }
-.companygrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-@media (max-width: 980px) { .companygrid { grid-template-columns: repeat(2, 1fr); } }
+.companygrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 980px) { .companygrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .companygrid { grid-template-columns: 1fr; } }
-.companycard { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; cursor: pointer; transition: transform .15s, border-color .15s; }
+.companycard { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; cursor: pointer; transition: transform .15s, border-color .15s, box-shadow .15s; min-width: 0; }
+.companycard:hover { box-shadow: 0 6px 18px rgba(59,130,246,.14); }
 .companycard:hover { transform: translateY(-2px); border-color: var(--accent); }
 .cc-main { min-width: 0; flex: 1; }
 .cc-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
